@@ -1,0 +1,162 @@
+<?xml version="1.0" ?>
+<robot name="mr_robot" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<xacro:property name="body_color" value="Gazebo/Black" />
+<xacro:property name="body_color2" value="Gazebo/Silver" />
+
+<gazebo reference="base_link">
+  <material>${body_color2}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+  <gravity>true</gravity>
+</gazebo>
+
+<gazebo reference="right_wheel__1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="left_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo>
+  <plugin name="gazebo_ros_joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
+    <update_rate>20</update_rate>
+    <joint_name>right_motor_joint</joint_name>
+    <joint_name>left_motor_joint</joint_name>
+  </plugin>
+</gazebo>
+
+
+<!-- Differential drive Plugin -->
+<gazebo>
+
+  <plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+    <commandTopic>cmd_vel</commandTopic>
+    <left_joint>left_motor_joint</left_joint>
+    <right_joint>right_motor_joint</right_joint>
+    
+    <wheel_separation>0.354</wheel_separation>
+    <wheel_diameter>0.107</wheel_diameter>
+    
+    <max_wheel_torque>200</max_wheel_torque>
+    <max_wheel_acceleration>30.0</max_wheel_acceleration>
+    
+    <odometry_frame>odom</odometry_frame>
+    <robot_base_frame>base_footprint</robot_base_frame>
+    <publish_odom>true</publish_odom>
+    <publish_odom_tf>true</publish_odom_tf>
+    <publish_wheel_tf>false</publish_wheel_tf>
+    
+    <update_rate>50</update_rate>
+    <legacyMode>false</legacyMode>
+
+
+</plugin>
+</gazebo>
+
+
+<gazebo reference="imu_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+  <gravity>true</gravity>
+
+  <sensor name="imu_sensor" type="imu">
+    <always_on>true</always_on>
+    <update_rate>100</update_rate>
+    <visualize>true</visualize>
+    <topic>__default_topic__</topic>
+    <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+      <topicName>imu</topicName>
+      <bodyName>imu_link</bodyName>
+      <updateRateHZ>10.0</updateRateHZ>
+      <gaussianNoise>0.0</gaussianNoise>
+      <xyzOffset>0 0 0</xyzOffset>
+      <rpyOffset>0 0 0</rpyOffset>
+      <frameName>imu_link</frameName>
+      <initialOrientationAsReference>false</initialOrientationAsReference>
+    </plugin>
+    <pose>0 0 0 0 0 0</pose>
+  </sensor>
+</gazebo>
+
+<gazebo reference="gps_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+
+  <sensor name="tb3_gps" type="gps">
+    <always_on>true</always_on>
+    <update_rate>1</update_rate>
+    <pose>0 0 0 0 0 0</pose>
+    <gps>
+      <position_sensing>
+        <horizontal>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </horizontal>
+        <vertical>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </vertical>
+      </position_sensing>
+    </gps>
+    <plugin name="my_gps_plugin" filename="libgazebo_ros_gps_sensor.so">
+      <ros>
+        <remapping>~/out:=/gps/fix</remapping>
+      </ros>
+    </plugin>
+  </sensor>
+
+</gazebo>
+
+<gazebo reference="Lidar_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+
+  <sensor name="laser" type="ray">
+    <pose> 0 0 0 0 0 0 </pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray> 
+      <scan>
+        <horizontal>
+          <samples>360</samples>
+          <min_angle>-3.14</min_angle>
+          <max_angle>3.14</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.3</min>
+        <max>12</max>
+      </range>    
+    </ray>
+    <plugin name="laser_controller" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <argument>~/out:=scan</argument>
+        <use_sim_time>true</use_sim_time>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>Lidar_1</frame_name>
+    </plugin>
+  </sensor>
+  
+</gazebo>
+
+</robot>
