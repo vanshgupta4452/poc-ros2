@@ -32,13 +32,14 @@ target_link_libraries(fcl_self_collision_node
 )
 
 install(
-  DIRECTORY  urdf src
+  DIRECTORY  urdf src urdf2
   DESTINATION share/${PROJECT_NAME}
 )
 
 install(TARGETS
   fcl_self_collision_node
   DESTINATION lib/${PROJECT_NAME})
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

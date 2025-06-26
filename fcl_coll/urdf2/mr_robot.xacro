@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
 <robot name="mr_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-<xacro:include filename="$(find mr_robot_description)/urdf/materials.xacro" />
-<xacro:include filename="$(find mr_robot_description)/urdf/mr_robot.trans" />
-<xacro:include filename="$(find mr_robot_description)/urdf/mr_robot.gazebo" />
+<xacro:include filename="$(find fcl_coll)/urdf/materials.xacro" />
+<xacro:include filename="$(find fcl_coll)/urdf/mr_robot.trans" />
+<xacro:include filename="$(find fcl_coll)/urdf/mr_robot.gazebo" />
 
 <!-- BASE FOOTPRINT LINK -->
 
@@ -26,14 +26,14 @@
   <visual>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+     <box size="0.5 0.3 0.1"/>    
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      <box size="0.5 0.3 0.1"/>
     </geometry>
   </collision>
 </link>
@@ -45,16 +45,17 @@
     <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="-0.0 0.172825 0.0556" rpy="0 0 0"/>
+    <origin xyz="-0.0 0.172825 0.0556" rpy="1.5708 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/right_wheel__1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/>    
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="-0.0 0.172825 0.0556" rpy="0 0 0"/>
+  
+    <origin xyz="-0.0 0.172825 0.0556" rpy="1.5708 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/right_wheel__1.stl" scale="0.001 0.001 0.001"/>
+     <cylinder radius="0.05" length="0.02"/>    
     </geometry>
   </collision>
 </link>
@@ -66,16 +67,16 @@
     <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="0.0 -0.181075 0.0556" rpy="0 0 0"/>
+    <origin xyz="0.0 -0.181075 0.0556" rpy="1.5708 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.0 -0.181075 0.0556" rpy="0 0 0"/>
+    <origin xyz="0.0 -0.181075 0.0556" rpy="1.5708 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
   </collision>
 </link>
@@ -89,14 +90,14 @@
   <visual>
     <origin xyz="-0.0 -0.0 -0.0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/imu_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.0 -0.0 -0.0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/imu_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
   </collision>
 </link>
@@ -110,14 +111,14 @@
   <visual>
     <origin xyz="-0.087 -0.0 -0.0065" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/gps_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.087 -0.0 -0.0065" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/gps_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
   </collision>
 </link>
@@ -131,14 +132,14 @@
   <visual>
     <origin xyz="-0.2625 -0.0 -0.0085" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/Lidar_1.stl" scale="0.001 0.001 0.001"/>
+      <cylinder radius="0.05" length="0.02"/> 
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.2625 -0.0 -0.0085" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find mr_robot_description)/meshes/Lidar_1.stl" scale="0.001 0.001 0.001"/>
+     <cylinder radius="0.05" length="0.02"/> 
     </geometry>
   </collision>
 </link>

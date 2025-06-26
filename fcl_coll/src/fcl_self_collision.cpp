@@ -15,7 +15,7 @@ public:
     RCLCPP_INFO(this->get_logger(), "Loading URDF...");
 
     std::string package_share = ament_index_cpp::get_package_share_directory("fcl_coll");
-    std::string urdf_path = package_share + "/urdf/robot_arm.urdf";
+    std::string urdf_path = package_share + "/urdf2/mr_robot.xacro";
 
     if (!model_.initFile(urdf_path)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to parse URDF.");
@@ -26,7 +26,7 @@ public:
 
     auto sphere_geom = std::make_shared<fcl::Sphered>(0.05);
     Eigen::Isometry3d sphere_tf = Eigen::Isometry3d::Identity();
-    sphere_tf.translation() << -0.7, 0.0, 0.2; // start near the robot
+    sphere_tf.translation() << -0.7, 0.0, 0.0; // start near the robot
     moving_sphere_ = std::make_shared<fcl::CollisionObjectd>(sphere_geom, sphere_tf);
 
     timer_ = this->create_wall_timer(
