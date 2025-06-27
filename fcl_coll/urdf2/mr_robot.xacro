@@ -26,14 +26,14 @@
   <visual>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-     <box size="0.5 0.3 0.1"/>    
+      <mesh filename="package://fcl_coll/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-      <box size="0.5 0.3 0.1"/>
+      <mesh filename="package://fcl_coll/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -45,17 +45,16 @@
     <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="-0.0 0.172825 0.0556" rpy="1.5708 0 0"/>
+    <origin xyz="0.0 0.4 0.0" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/>    
+      <mesh filename="package://fcl_coll/meshes/right_wheel__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-  
-    <origin xyz="-0.0 0.172825 0.0556" rpy="1.5708 0 0"/>
+    <origin xyz="0.0 0.4 0.0" rpy="0 0 0"/>
     <geometry>
-     <cylinder radius="0.05" length="0.02"/>    
+      <mesh filename="package://fcl_coll/meshes/right_wheel__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -67,16 +66,16 @@
     <inertia ixx="0.002744" iyy="0.005023" izz="0.002744" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="0.0 -0.181075 0.0556" rpy="1.5708 0 0"/>
+    <origin xyz="0.0 -0.4 0.0" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.0 -0.181075 0.0556" rpy="1.5708 0 0"/>
+    <origin xyz="0.0 -0.4 0.0" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -90,14 +89,14 @@
   <visual>
     <origin xyz="-0.0 -0.0 -0.0" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/imu_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.0 -0.0 -0.0" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/imu_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -111,14 +110,14 @@
   <visual>
     <origin xyz="-0.087 -0.0 -0.0065" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/gps_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.087 -0.0 -0.0065" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/gps_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -132,14 +131,14 @@
   <visual>
     <origin xyz="-0.2625 -0.0 -0.0085" rpy="0 0 0"/>
     <geometry>
-      <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/Lidar_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.2625 -0.0 -0.0085" rpy="0 0 0"/>
     <geometry>
-     <cylinder radius="0.05" length="0.02"/> 
+      <mesh filename="package://fcl_coll/meshes/Lidar_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -153,10 +152,10 @@
 </joint>
 
 <joint name="left_motor_joint" type="continuous">
-  <origin xyz="0.0 0.181075 -0.0556" rpy="0 0 0"/>
+  <origin xyz="0.0 -0.4 0.0" rpy="0 0.0 0"/>
   <parent link="base_link"/>
   <child link="left_wheel_1"/>
-  <axis xyz="-0.0 1.0 0.0"/>
+  <axis xyz="-0.0 -0.4 0.0"/>
 </joint>
 
 <joint name="Rigid 15" type="fixed">
