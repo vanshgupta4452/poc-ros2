@@ -7,10 +7,10 @@ It loads a URDF, parses links into FCL shapes, checks for collisions (including 
 ## Clone the Repository
 
 ```bash
-git clone <your-repo-url> src/fcl_coll
+git clone git@github.com:vanshgupta4452/fcl-ros2.git
 ```
 
-> Replace `<your-repo-url>` with the actual GitHub URL.
+
 
 ##  Install Dependencies
 
@@ -29,7 +29,7 @@ sudo apt install \
   libassimp-dev
 ```
 
-> Replace `humble` with your actual ROS 2 distro name if different.
+
 
 ##  Build the Package
 
