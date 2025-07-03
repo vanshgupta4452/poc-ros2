@@ -10,6 +10,7 @@
 #include <assimp/postprocess.h>
 #include <filesystem>
 #include <fstream>
+#include <map>
 
 class FCLSelfCollisionNode : public rclcpp::Node {
 public:
@@ -17,10 +18,8 @@ public:
     marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker_array", 10);
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-    RCLCPP_INFO(this->get_logger(), "Loading URDF...");
-
-    std::string package_share = ament_index_cpp::get_package_share_directory("fcl_coll");
-    std::string urdf_path = package_share + "/urdf2/mr_robot.xacro";
+    std::string package_share = ament_index_cpp::get_package_share_directory("PXA-100_description");
+    std::string urdf_path = package_share + "/urdf/PXA-100.xacro";
     package_share_dir_ = package_share;
 
     if (!model_.initFile(urdf_path)) {
@@ -32,20 +31,19 @@ public:
 
     auto sphere_geom = std::make_shared<fcl::Sphered>(0.05);
     Eigen::Isometry3d sphere_tf = Eigen::Isometry3d::Identity();
-    sphere_tf.translation() << -0.31, 0.0, 0.0; // start near the robot
+    sphere_tf.translation() << -0.31, 0.0, 0.2;
     moving_sphere_ = std::make_shared<fcl::CollisionObjectd>(sphere_geom, sphere_tf);
 
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(500),
       std::bind(&FCLSelfCollisionNode::publishMarkersAndTFs, this)
     );
-
-    RCLCPP_INFO(this->get_logger(), "URDF loaded. Ready to publish.");
   }
 
 private:
   urdf::Model model_;
   std::map<std::string, std::shared_ptr<fcl::CollisionObjectd>> collision_objects_;
+  std::map<std::string, Eigen::Isometry3d> link_transforms_;
   std::shared_ptr<fcl::CollisionObjectd> moving_sphere_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
@@ -53,118 +51,71 @@ private:
   std::string package_share_dir_;
   Assimp::Importer importer_;
 
-  bool isAbsolutePath(const std::string& path) {
-    // Check for absolute paths on Unix/Linux (starts with /)
-    if (!path.empty() && path[0] == '/') {
-      return true;
-    }
-    // Check for Windows absolute paths (C:\ or similar)
-    if (path.length() >= 3 && path[1] == ':' && (path[2] == '\\' || path[2] == '/')) {
-      return true;
-    }
-    return false;
-  }
+  Eigen::Isometry3d getFullLinkTransform(const urdf::LinkConstSharedPtr& link) {
+    if (!link || !link->parent_joint) return Eigen::Isometry3d::Identity();
 
-  bool fileExists(const std::string& path) {
-    std::ifstream file(path);
-    return file.good();
+    const urdf::Pose& joint_origin = link->parent_joint->parent_to_joint_origin_transform;
+
+    Eigen::Isometry3d joint_tf = Eigen::Isometry3d::Identity();
+    joint_tf.translation() << joint_origin.position.x, joint_origin.position.y, joint_origin.position.z;
+    Eigen::Quaterniond q(joint_origin.rotation.w, joint_origin.rotation.x, joint_origin.rotation.y, joint_origin.rotation.z);
+    joint_tf.linear() = q.toRotationMatrix();
+
+    return getFullLinkTransform(link->getParent()) * joint_tf;
   }
 
   std::string resolveMeshPath(const std::string& mesh_filename) {
-    // Handle package:// URIs
     if (mesh_filename.find("package://") == 0) {
-      std::string relative_path = mesh_filename.substr(10); // Remove "package://"
+      std::string relative_path = mesh_filename.substr(10);
       size_t first_slash = relative_path.find('/');
       if (first_slash != std::string::npos) {
         std::string package_name = relative_path.substr(0, first_slash);
         std::string file_path = relative_path.substr(first_slash + 1);
-        
         try {
           std::string package_path = ament_index_cpp::get_package_share_directory(package_name);
           return package_path + "/" + file_path;
-        } catch (const std::exception& e) {
-          RCLCPP_WARN(this->get_logger(), "Failed to resolve package path for %s: %s", 
-                      package_name.c_str(), e.what());
-        }
+        } catch (...) {}
       }
     }
-    
-    // Handle file:// URIs
-    if (mesh_filename.find("file://") == 0) {
-      return mesh_filename.substr(7); // Remove "file://"
-    }
-    
-    // Handle relative paths - assume they're relative to the package
-    if (!isAbsolutePath(mesh_filename)) {
-      return package_share_dir_ + "/" + mesh_filename;
-    }
-    
-    // Return as-is for absolute paths
     return mesh_filename;
   }
 
-  std::shared_ptr<fcl::CollisionGeometryd> loadMeshGeometry(const std::string& mesh_filename, 
-                                                            const urdf::Vector3& scale) {
+  std::shared_ptr<fcl::CollisionGeometryd> loadMeshGeometry(const std::string& mesh_filename, const urdf::Vector3& scale) {
     std::string resolved_path = resolveMeshPath(mesh_filename);
-    
-    if (!fileExists(resolved_path)) {
-      RCLCPP_ERROR(this->get_logger(), "Mesh file not found: %s", resolved_path.c_str());
-      return nullptr;
-    }
+    if (!std::ifstream(resolved_path)) return nullptr;
 
-    const aiScene* scene = importer_.ReadFile(resolved_path, 
-                                              aiProcess_Triangulate | 
-                                              aiProcess_GenNormals |
-                                              aiProcess_JoinIdenticalVertices);
-    
-    if (!scene || !scene->mMeshes || scene->mNumMeshes == 0) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to load mesh: %s", resolved_path.c_str());
-      return nullptr;
-    }
+    const aiScene* scene = importer_.ReadFile(resolved_path,
+        aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices);
+    if (!scene || !scene->mMeshes || scene->mNumMeshes == 0) return nullptr;
 
-    // For simplicity, use the first mesh
     const aiMesh* mesh = scene->mMeshes[0];
-    
     std::vector<fcl::Vector3d> vertices;
     std::vector<fcl::Triangle> triangles;
 
-    // Extract vertices with scaling
     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
       const aiVector3D& v = mesh->mVertices[i];
       vertices.emplace_back(v.x * scale.x, v.y * scale.y, v.z * scale.z);
     }
 
-    // Extract triangles
     for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
       const aiFace& face = mesh->mFaces[i];
-      if (face.mNumIndices == 3) {
+      if (face.mNumIndices == 3)
         triangles.emplace_back(face.mIndices[0], face.mIndices[1], face.mIndices[2]);
-      }
-    }
-
-    if (vertices.empty() || triangles.empty()) {
-      RCLCPP_ERROR(this->get_logger(), "Mesh has no valid geometry: %s", resolved_path.c_str());
-      return nullptr;
     }
 
     auto bvh_model = std::make_shared<fcl::BVHModel<fcl::OBBRSSd>>();
     bvh_model->beginModel();
     bvh_model->addSubModel(vertices, triangles);
     bvh_model->endModel();
-
-    RCLCPP_INFO(this->get_logger(), "Loaded mesh: %s (%zu vertices, %zu triangles)", 
-                resolved_path.c_str(), vertices.size(), triangles.size());
-
     return bvh_model;
   }
 
   void setupCollisionObjects() {
-    for (const auto &link_pair : model_.links_) {
-      const auto &link = link_pair.second;
+    for (const auto& link_pair : model_.links_) {
+      const auto& link = link_pair.second;
       if (!link->collision || !link->collision->geometry) continue;
 
       std::shared_ptr<fcl::CollisionGeometryd> fcl_geom;
-
       switch (link->collision->geometry->type) {
         case urdf::Geometry::BOX: {
           auto box = dynamic_cast<urdf::Box*>(link->collision->geometry.get());
@@ -182,50 +133,28 @@ private:
           break;
         }
         case urdf::Geometry::MESH: {
-          std::cout << "Geometry type: " << link->visual->geometry->type << std::endl;
-
-          std::shared_ptr<urdf::Mesh> mesh = std::dynamic_pointer_cast<urdf::Mesh>(link->visual->geometry);
-          if(mesh) {
-            std::cout << "✅ Mesh filename: " << mesh->filename << std::endl;
-            std::cout << "✅ Scale: " << mesh->scale.x << ", " << mesh->scale.y << ", " << mesh->scale.z << std::endl;
-          };
-          if (mesh) {
-            RCLCPP_INFO(this->get_logger(), "Loading mesh for link %s: %s", 
-                        link->name.c_str(), mesh->filename.c_str());
-            fcl_geom = loadMeshGeometry(mesh->filename, mesh->scale);
-            if (!fcl_geom) {
-              RCLCPP_WARN(this->get_logger(), "Failed to load mesh for link: %s (file: %s), skipping", 
-                          link->name.c_str(), mesh->filename.c_str());
-              continue;
-            }
-          } else {
-            RCLCPP_ERROR(this->get_logger(), "Invalid mesh geometry for link: %s", link->name.c_str());
-            continue;
-          }
+          auto mesh = std::dynamic_pointer_cast<urdf::Mesh>(link->collision->geometry);
+          fcl_geom = loadMeshGeometry(mesh->filename, mesh->scale);
           break;
         }
-        default:
-          RCLCPP_WARN(this->get_logger(), "Unsupported geometry type in link: %s", 
-                      link->name.c_str());
-          continue;
+        default: continue;
       }
 
-      // Set up transform from URDF collision origin
-      Eigen::Isometry3d tf = Eigen::Isometry3d::Identity();
-      tf.translation() << link->collision->origin.position.x,
-                          link->collision->origin.position.y,
-                          link->collision->origin.position.z;
-      
-      // Set rotation from URDF quaternion
-      Eigen::Quaterniond quat(link->collision->origin.rotation.w,
-                              link->collision->origin.rotation.x,
-                              link->collision->origin.rotation.y,
-                              link->collision->origin.rotation.z);
-      tf.linear() = quat.toRotationMatrix();
+      Eigen::Isometry3d link_tf = getFullLinkTransform(link);
 
-      collision_objects_[link->name] = std::make_shared<fcl::CollisionObjectd>(fcl_geom, tf);
-      
-      RCLCPP_INFO(this->get_logger(), "Added collision object for link: %s", link->name.c_str());
+      Eigen::Isometry3d collision_tf = Eigen::Isometry3d::Identity();
+      collision_tf.translation() << link->collision->origin.position.x,
+                                   link->collision->origin.position.y,
+                                   link->collision->origin.position.z;
+      Eigen::Quaterniond q(link->collision->origin.rotation.w,
+                           link->collision->origin.rotation.x,
+                           link->collision->origin.rotation.y,
+                           link->collision->origin.rotation.z);
+      collision_tf.linear() = q.toRotationMatrix();
+
+      Eigen::Isometry3d final_tf = link_tf * collision_tf;
+      collision_objects_[link->name] = std::make_shared<fcl::CollisionObjectd>(fcl_geom, final_tf);
+      link_transforms_[link->name] = final_tf;
     }
   }
 
@@ -233,42 +162,37 @@ private:
     visualization_msgs::msg::MarkerArray marker_array;
     int id = 0;
 
-    // Move the sphere
     Eigen::Isometry3d sphere_tf = moving_sphere_->getTransform();
-    sphere_tf.translation().x() += 0.01; // move along x
+    sphere_tf.translation().x() += 0.01;
     moving_sphere_->setTransform(sphere_tf);
 
     bool sphere_collision = false;
-    std::string collided_link;
-    double min_distance = std::numeric_limits<double>::max();
+    std::string collided_links;
+    std::string collided_links_string;
 
-    // Check collisions with all collision objects
     for (auto& [link_name, obj] : collision_objects_) {
       fcl::CollisionRequestd request;
       fcl::CollisionResultd result;
-
-      fcl::DistanceRequestd distance_request(true);
-      fcl::DistanceResultd distance_result;
-
       fcl::collide(moving_sphere_.get(), obj.get(), request, result);
-      fcl::distance(moving_sphere_.get(), obj.get(), distance_request, distance_result);
-      
-      min_distance = std::min(min_distance, distance_result.min_distance);
 
       if (result.isCollision()) {
         sphere_collision = true;
-        collided_link = link_name;
+        collided_links = link_name;
         RCLCPP_WARN(this->get_logger(), "Collision detected with link: %s", link_name.c_str());
         break;
       }
     }
 
-    RCLCPP_INFO(this->get_logger(), "Min Distance = %.4f", min_distance);
+    
 
-    // Create markers for all links
-    for (const auto &link_pair : model_.links_) {
-      const auto &link = link_pair.second;
+
+    for (const auto& link_pair : model_.links_) {
+      const auto& link = link_pair.second;
       if (!link->collision || !link->collision->geometry) continue;
+      if (!link_transforms_.count(link->name)) continue;
+
+      Eigen::Isometry3d tf = link_transforms_[link->name];
+      Eigen::Quaterniond q(tf.rotation());
 
       visualization_msgs::msg::Marker marker;
       marker.header.frame_id = "base_link";
@@ -276,20 +200,24 @@ private:
       marker.ns = "robot";
       marker.id = id++;
       marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.pose.position.x = tf.translation().x();
+      marker.pose.position.y = tf.translation().y();
+      marker.pose.position.z = tf.translation().z();
+      marker.pose.orientation.x = q.x();
+      marker.pose.orientation.y = q.y();
+      marker.pose.orientation.z = q.z();
+      marker.pose.orientation.w = q.w();
 
-      marker.pose.position.x = link->collision->origin.position.x;
-      marker.pose.position.y = link->collision->origin.position.y;
-      marker.pose.position.z = link->collision->origin.position.z;
-      marker.pose.orientation.x = link->collision->origin.rotation.x;
-      marker.pose.orientation.y = link->collision->origin.rotation.y;
-      marker.pose.orientation.z = link->collision->origin.rotation.z;
-      marker.pose.orientation.w = link->collision->origin.rotation.w;
+      // // _INFO(this->get_logger(), "TF for %s: Position = [%.3f, %.3f, %.3f], Quaternion = [RCLCPP%.3f, %.3f, %.3f, %.3f]",
+      //       link->name.c_str(),
+      //       tf.translation().x(), tf.translation().y(), tf.translation().z(),
+      //       q.x(), q.y(), q.z(), q.w());
 
-      // Set marker type and scale based on geometry
+
       switch (link->collision->geometry->type) {
         case urdf::Geometry::BOX: {
           auto box = dynamic_cast<urdf::Box*>(link->collision->geometry.get());
-          marker.type = visualization_msgs::msg::Marker::CUBE;
+          marker.type = marker.CUBE;
           marker.scale.x = box->dim.x;
           marker.scale.y = box->dim.y;
           marker.scale.z = box->dim.z;
@@ -297,93 +225,89 @@ private:
         }
         case urdf::Geometry::CYLINDER: {
           auto cyl = dynamic_cast<urdf::Cylinder*>(link->collision->geometry.get());
-          marker.type = visualization_msgs::msg::Marker::CYLINDER;
-          marker.scale.x = cyl->radius * 2.0;
-          marker.scale.y = cyl->radius * 2.0;
+          marker.type = marker.CYLINDER;
+          marker.scale.x = cyl->radius * 2;
+          marker.scale.y = cyl->radius * 2;
           marker.scale.z = cyl->length;
           break;
         }
         case urdf::Geometry::SPHERE: {
           auto sph = dynamic_cast<urdf::Sphere*>(link->collision->geometry.get());
-          marker.type = visualization_msgs::msg::Marker::SPHERE;
-          marker.scale.x = sph->radius * 2.0;
-          marker.scale.y = sph->radius * 2.0;
-          marker.scale.z = sph->radius * 2.0;
+          marker.type = marker.SPHERE;
+          marker.scale.x = marker.scale.y = marker.scale.z = sph->radius * 2;
           break;
         }
         case urdf::Geometry::MESH: {
-          auto mesh = dynamic_cast<urdf::Mesh*>(link->collision->geometry.get());
-          if (mesh) {
-            marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
-            marker.mesh_resource = "file://" + resolveMeshPath(mesh->filename);
-            marker.scale.x = mesh->scale.x;
-            marker.scale.y = mesh->scale.y;
-            marker.scale.z = mesh->scale.z;
-            RCLCPP_DEBUG(this->get_logger(), "Mesh marker for %s: %s", 
-                        link->name.c_str(), marker.mesh_resource.c_str());
-          } else {
-            continue;
-          }
+          auto mesh = std::dynamic_pointer_cast<urdf::Mesh>(link->collision->geometry);
+          marker.type = marker.MESH_RESOURCE;
+          marker.mesh_resource = "file://" + resolveMeshPath(mesh->filename);
+          marker.scale.x = mesh->scale.x;
+          marker.scale.y = mesh->scale.y;
+          marker.scale.z = mesh->scale.z;
           break;
         }
-        default:
-          continue;
+        default: continue;
       }
 
-      // Set color based on collision state
-      if (sphere_collision && link->name == collided_link) {
-        marker.color.r = 1.0f;
-        marker.color.g = 0.0f;
-        marker.color.b = 0.0f;
-        marker.color.a = 1.0f;
+     if (sphere_collision && link->name == collided_links) {
+          marker.color.r = 1.0;
+          marker.color.g = 0.0;
+          marker.color.b = 0.0;
       } else {
-        marker.color.r = 0.5f;
-        marker.color.g = 0.5f;
-        marker.color.b = 0.5f;
-        marker.color.a = 1.0f;
+          marker.color.r = 0.5;
+          marker.color.g = 0.5;
+          marker.color.b = 0.5;
       }
 
+      marker.color.a = 1.0;
       marker_array.markers.push_back(marker);
+      // double x=link->collision->origin.position.x;
+      // double y=link->collision->origin.position.y;
 
-      // Publish transform
-      geometry_msgs::msg::TransformStamped tf;
-      tf.header.stamp = this->now();
-      tf.header.frame_id = "base_link";
-      tf.child_frame_id = link->name;
-      tf.transform.translation.x = marker.pose.position.x;
-      tf.transform.translation.y = marker.pose.position.y;
-      tf.transform.translation.z = marker.pose.position.z;
-      tf.transform.rotation = marker.pose.orientation;
+      // double z=link->collision->origin.position.z;
 
-      tf_broadcaster_->sendTransform(tf);
+      geometry_msgs::msg::TransformStamped tf_msg;
+      tf_msg.header.stamp = this->now();
+      tf_msg.header.frame_id = "base_link";
+      tf_msg.child_frame_id = link->name;
+    
+      tf_msg.transform.translation.x = link->collision->origin.position.x;
+      tf_msg.transform.translation.y = -link->collision->origin.position.y;
+      tf_msg.transform.translation.z = -link->collision->origin.position.z;
+      tf_msg.transform.rotation.x = link->collision->origin.rotation.x;
+      tf_msg.transform.rotation.y = link->collision->origin.rotation.y;
+      tf_msg.transform.rotation.z = link->collision->origin.rotation.z;
+      tf_msg.transform.rotation.w = link->collision->origin.rotation.w;
+      tf_broadcaster_->sendTransform(tf_msg);
+      RCLCPP_INFO(this->get_logger(), "Link name: testing haiu bhai %s", link->name.c_str());
+
     }
 
-    // Create moving sphere marker
     visualization_msgs::msg::Marker sphere_marker;
     sphere_marker.header.frame_id = "base_link";
     sphere_marker.header.stamp = this->now();
     sphere_marker.ns = "sphere";
     sphere_marker.id = id++;
-    sphere_marker.type = visualization_msgs::msg::Marker::SPHERE;
-    sphere_marker.action = visualization_msgs::msg::Marker::ADD;
+    sphere_marker.type = sphere_marker.SPHERE;
+    sphere_marker.action = sphere_marker.ADD;
     sphere_marker.scale.x = 0.1;
     sphere_marker.scale.y = 0.1;
     sphere_marker.scale.z = 0.1;
-    sphere_marker.pose.position.x = moving_sphere_->getTransform().translation().x();
-    sphere_marker.pose.position.y = moving_sphere_->getTransform().translation().y();
-    sphere_marker.pose.position.z = moving_sphere_->getTransform().translation().z();
+    sphere_marker.pose.position.x = sphere_tf.translation().x();
+    sphere_marker.pose.position.y = sphere_tf.translation().y();
+    sphere_marker.pose.position.z = sphere_tf.translation().z();
     sphere_marker.pose.orientation.w = 1.0;
 
     if (sphere_collision) {
-      sphere_marker.color.r = 1.0f;
-      sphere_marker.color.g = 0.0f;
-      sphere_marker.color.b = 0.0f;
+      sphere_marker.color.r = 1.0;
+      sphere_marker.color.g = 0.0;
+      sphere_marker.color.b = 0.0;
     } else {
-      sphere_marker.color.r = 0.0f;
-      sphere_marker.color.g = 1.0f;
-      sphere_marker.color.b = 0.0f;
+      sphere_marker.color.r = 0.0;
+      sphere_marker.color.g = 1.0;
+      sphere_marker.color.b = 0.0;
     }
-    sphere_marker.color.a = 1.0f;
+    sphere_marker.color.a = 1.0;
     marker_array.markers.push_back(sphere_marker);
 
     marker_pub_->publish(marker_array);

@@ -2,11 +2,16 @@
 #include <urdf/model.h>
 #include <fcl/fcl.h>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <Eigen/Geometry>
 #include <fstream>
 #include <set>
 #include <string>
@@ -15,26 +20,129 @@ class SelfCollisionChecker : public rclcpp::Node {
 public:
   SelfCollisionChecker() : Node("self_collision_checker") {
     marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("self_collision_markers", 10);
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+    
+    // Subscribe to joint states
+    joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+        "/joint_states", 10, std::bind(&SelfCollisionChecker::jointStateCallback, this, std::placeholders::_1));
 
-    std::string urdf_path = ament_index_cpp::get_package_share_directory("fcl_coll") + "/urdf2/mr_robot.xacro";
+    std::string urdf_path = ament_index_cpp::get_package_share_directory("PXA-100_description") + "/urdf/PXA-100.urdf";
     if (!model_.initFile(urdf_path)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to load URDF: %s", urdf_path.c_str());
       return;
     }
 
-    package_share_dir_ = ament_index_cpp::get_package_share_directory("fcl_coll");
+    package_share_dir_ = ament_index_cpp::get_package_share_directory("PXA-100_description");
     setupCollisionObjects();
 
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(500), std::bind(&SelfCollisionChecker::checkSelfCollision, this));
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&SelfCollisionChecker::checkSelfCollision, this));
   }
 
 private:
   urdf::Model model_;
   Assimp::Importer importer_;
   std::map<std::string, std::shared_ptr<fcl::CollisionObjectd>> collision_objects_;
+  std::map<std::string, std::shared_ptr<fcl::CollisionGeometryd>> collision_geometries_;
+  std::map<std::string, Eigen::Isometry3d> link_transforms_;
+  std::map<std::string, double> current_joint_positions_;
+  
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::string package_share_dir_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+  void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+    // Update joint positions
+    for (size_t i = 0; i < msg->name.size(); ++i) {
+      current_joint_positions_[msg->name[i]] = msg->position[i];
+    }
+    
+    // Recalculate all link transforms based on current joint positions
+    updateLinkTransforms();
+  }
+
+  void updateLinkTransforms() {
+    // Start from base_link (root)
+    auto base_link = model_.getLink("base_link");
+    if (base_link) {
+      link_transforms_["base_link"] = Eigen::Isometry3d::Identity();
+      updateChildLinkTransforms(base_link, Eigen::Isometry3d::Identity());
+    }
+    
+    // Update collision objects with new transforms
+    for (auto &[link_name, obj] : collision_objects_) {
+      if (link_transforms_.count(link_name)) {
+        // Apply collision origin offset
+        auto urdf_link = model_.getLink(link_name);
+        if (urdf_link && urdf_link->collision) {
+          Eigen::Isometry3d collision_offset = Eigen::Isometry3d::Identity();
+          collision_offset.translation() << urdf_link->collision->origin.position.x,
+                                           urdf_link->collision->origin.position.y,
+                                           urdf_link->collision->origin.position.z;
+          Eigen::Quaterniond q(urdf_link->collision->origin.rotation.w,
+                               urdf_link->collision->origin.rotation.x,
+                               urdf_link->collision->origin.rotation.y,
+                               urdf_link->collision->origin.rotation.z);
+          collision_offset.linear() = q.toRotationMatrix();
+          
+          Eigen::Isometry3d final_transform = link_transforms_[link_name] * collision_offset;
+          obj->setTransform(final_transform);
+        }
+      }
+    }
+  }
+
+  void updateChildLinkTransforms(const urdf::LinkConstSharedPtr& parent_link, const Eigen::Isometry3d& parent_transform) {
+    // Get all child joints of this link
+    for (const auto& joint_pair : model_.joints_) {
+      const auto& joint = joint_pair.second;
+      
+      if (joint->parent_link_name == parent_link->name) {
+        // Calculate joint transform
+        Eigen::Isometry3d joint_transform = Eigen::Isometry3d::Identity();
+        
+        // Apply joint origin transform
+        const urdf::Pose& joint_origin = joint->parent_to_joint_origin_transform;
+        joint_transform.translation() << joint_origin.position.x, joint_origin.position.y, joint_origin.position.z;
+        Eigen::Quaterniond q(joint_origin.rotation.w, joint_origin.rotation.x, joint_origin.rotation.y, joint_origin.rotation.z);
+        joint_transform.linear() = q.toRotationMatrix();
+        
+        // Apply joint angle if it's a revolute or prismatic joint
+        if (current_joint_positions_.count(joint->name)) {
+          double joint_angle = current_joint_positions_[joint->name];
+          
+          if (joint->type == urdf::Joint::REVOLUTE || joint->type == urdf::Joint::CONTINUOUS) {
+            // Apply rotation around joint axis
+            Eigen::Vector3d axis(joint->axis.x, joint->axis.y, joint->axis.z);
+            Eigen::AngleAxisd rotation(joint_angle, axis);
+            joint_transform.linear() = joint_transform.linear() * rotation.toRotationMatrix();
+          } else if (joint->type == urdf::Joint::PRISMATIC) {
+            // Apply translation along joint axis
+            Eigen::Vector3d axis(joint->axis.x, joint->axis.y, joint->axis.z);
+            joint_transform.translation() += joint_angle * axis;
+          }
+        }
+        
+        // Calculate child link transform
+        Eigen::Isometry3d child_transform = parent_transform * joint_transform;
+        
+        // Get child link
+        auto child_link = model_.getLink(joint->child_link_name);
+        if (child_link) {
+          link_transforms_[child_link->name] = child_transform;
+          
+          // Recursively update child links
+          updateChildLinkTransforms(child_link, child_transform);
+        }
+      }
+    }
+  }
 
   std::string resolveMeshPath(const std::string &mesh_filename) {
     if (mesh_filename.find("package://") == 0) {
@@ -56,8 +164,6 @@ private:
       if (!link->collision || !link->collision->geometry) continue;
 
       std::shared_ptr<fcl::CollisionGeometryd> geom;
-      auto origin = link->collision->origin.position;
-      auto rotation = link->collision->origin.rotation;
 
       switch (link->collision->geometry->type) {
         case urdf::Geometry::BOX: {
@@ -113,61 +219,93 @@ private:
           continue;
       }
 
-      Eigen::Isometry3d tf = Eigen::Isometry3d::Identity();
-      tf.translation() << origin.x, origin.y, origin.z;
-      Eigen::Quaterniond quat(rotation.w, rotation.x, rotation.y, rotation.z);
-      tf.linear() = quat.toRotationMatrix();
-
-      collision_objects_[link->name] = std::make_shared<fcl::CollisionObjectd>(geom, tf);
+      collision_geometries_[link->name] = geom;
+      collision_objects_[link->name] = std::make_shared<fcl::CollisionObjectd>(geom, Eigen::Isometry3d::Identity());
     }
   }
 
   void checkSelfCollision() {
     std::set<std::string> collided_links;
     std::vector<std::pair<std::string, std::string>> collided_pairs;
+    std::set<std::pair<std::string, std::string>> adjacent_pairs;
 
+    // Build adjacent pairs (parent-child relationships)
+    for (const auto &joint : model_.joints_) {
+      const std::string &parent = joint.second->parent_link_name;
+      const std::string &child = joint.second->child_link_name;
+      adjacent_pairs.insert({parent, child});
+      adjacent_pairs.insert({child, parent});
+    }
+
+    // Check for collisions
     for (auto it1 = collision_objects_.begin(); it1 != collision_objects_.end(); ++it1) {
       for (auto it2 = std::next(it1); it2 != collision_objects_.end(); ++it2) {
+        // Skip adjacent links
+        if (adjacent_pairs.count({it1->first, it2->first})) continue;
+
         fcl::CollisionRequestd request;
         fcl::CollisionResultd result;
         fcl::collide(it1->second.get(), it2->second.get(), request, result);
+
         if (result.isCollision()) {
           collided_links.insert(it1->first);
           collided_links.insert(it2->first);
-          collided_pairs.push_back({it1->first, it2->first});
+          collided_pairs.emplace_back(it1->first, it2->first);
         }
       }
     }
 
+    // Log collision results
     if (!collided_pairs.empty()) {
       RCLCPP_INFO(this->get_logger(), "[COLLISION] Links involved:");
       for (const auto &[l1, l2] : collided_pairs) {
         RCLCPP_INFO(this->get_logger(), "- %s <-> %s", l1.c_str(), l2.c_str());
       }
-    } else {
-      RCLCPP_INFO(this->get_logger(), "No collisions detected.");
     }
 
+    // Create visualization markers
     visualization_msgs::msg::MarkerArray marker_array;
     int id = 0;
     for (const auto &[link_name, obj] : collision_objects_) {
-      auto *urdf_link = model_.getLink(link_name).get();
-      auto &origin = urdf_link->collision->origin;
+      if (!link_transforms_.count(link_name)) continue;
+
+      auto urdf_link = model_.getLink(link_name);
+      if (!urdf_link || !urdf_link->collision) continue;
 
       visualization_msgs::msg::Marker marker;
-      marker.header.frame_id = "map";
       marker.header.stamp = this->now();
+      marker.header.frame_id = "base_link";
       marker.ns = "self_collision";
       marker.id = id++;
       marker.action = marker.ADD;
-      marker.pose.position.x = origin.position.x;
-      marker.pose.position.y = origin.position.y;
-      marker.pose.position.z = origin.position.z;
-      marker.pose.orientation.x = origin.rotation.x;
-      marker.pose.orientation.y = origin.rotation.y;
-      marker.pose.orientation.z = origin.rotation.z;
-      marker.pose.orientation.w = origin.rotation.w;
 
+      // Set pose from link transform
+      Eigen::Isometry3d tf = link_transforms_[link_name];
+      
+      // Apply collision origin offset
+      Eigen::Isometry3d collision_offset = Eigen::Isometry3d::Identity();
+      collision_offset.translation() << urdf_link->collision->origin.position.x,
+                                       urdf_link->collision->origin.position.y,
+                                       urdf_link->collision->origin.position.z;
+      Eigen::Quaterniond q(urdf_link->collision->origin.rotation.w,
+                           urdf_link->collision->origin.rotation.x,
+                           urdf_link->collision->origin.rotation.y,
+                           urdf_link->collision->origin.rotation.z);
+      collision_offset.linear() = q.toRotationMatrix();
+      
+      Eigen::Isometry3d final_tf = tf * collision_offset;
+      Eigen::Vector3d pos = final_tf.translation();
+      Eigen::Quaterniond quat(final_tf.rotation());
+
+      marker.pose.position.x = pos.x();
+      marker.pose.position.y = pos.y();
+      marker.pose.position.z = pos.z();
+      marker.pose.orientation.x = quat.x();
+      marker.pose.orientation.y = quat.y();
+      marker.pose.orientation.z = quat.z();
+      marker.pose.orientation.w = quat.w();
+
+      // Set geometry
       auto *geom = urdf_link->collision->geometry.get();
       if (geom->type == urdf::Geometry::BOX) {
         auto *box = dynamic_cast<urdf::Box *>(geom);
@@ -196,16 +334,17 @@ private:
         marker.scale.z = mesh->scale.z;
       }
 
+      // Set color based on collision status
       if (collided_links.count(link_name)) {
         marker.color.r = 1.0;
         marker.color.g = 0.0;
         marker.color.b = 0.0;
       } else {
-        marker.color.r = 0.5;
-        marker.color.g = 0.5;
-        marker.color.b = 0.5;
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
       }
-      marker.color.a = 1.0;
+      marker.color.a = 0.7;
 
       marker_array.markers.push_back(marker);
     }

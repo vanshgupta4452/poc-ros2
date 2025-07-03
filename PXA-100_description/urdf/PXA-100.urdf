@@ -1,0 +1,198 @@
+<?xml version="1.0" ?>
+<robot name="PXA-100" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find PXA-100_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find PXA-100_description)/urdf/PXA-100.trans" />
+<xacro:include filename="$(find PXA-100_description)/urdf/PXA-100.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="-0.00033268001955237986 0.031666793376025244 0.02046261261816924" rpy="0 0 0"/>
+    <mass value="4.439916826797788"/>
+    <inertia ixx="0.011384" iyy="0.003275" izz="0.013057" ixy="-1.3e-05" iyz="0.000269" ixz="-2e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="PX100_SRG_v3_1_1">
+  <inertial>
+    <origin xyz="-0.019000264282445372 -0.05234299910074103 0.009311512215089163" rpy="0 0 0"/>
+    <mass value="0.6301273298082232"/>
+    <inertia ixx="0.000307" iyy="0.000279" izz="0.000391" ixy="-0.0" iyz="-3e-05" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.018504 0.135244 -0.192547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/PX100_SRG_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.018504 0.135244 -0.192547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/PX100_SRG_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="SRG_Carriage_With_Finger_v3_1_1">
+  <inertial>
+    <origin xyz="-0.008162134589460593 -0.012920435536582398 4.170328478381169e-07" rpy="0 0 0"/>
+    <mass value="0.09723006086411787"/>
+    <inertia ixx="2.8e-05" iyy="9e-06" izz="2.1e-05" ixy="-2e-06" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.049502 0.221244 -0.192548" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SRG_Carriage_With_Finger_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.049502 0.221244 -0.192548" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SRG_Carriage_With_Finger_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="SRG_Carriage_With_Finger_v3_2_1">
+  <inertial>
+    <origin xyz="0.008162071336713213 -0.012920435494593985 3.3716024680496837e-07" rpy="0 0 0"/>
+    <mass value="0.09723006118130129"/>
+    <inertia ixx="2.8e-05" iyy="9e-06" izz="2.1e-05" ixy="2e-06" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.050498 0.221244 -0.192548" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SRG_Carriage_With_Finger_v3_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.050498 0.221244 -0.192548" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SRG_Carriage_With_Finger_v3_2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="PX-100_Shoulder_v3_1_1">
+  <inertial>
+    <origin xyz="-2.811853144598286e-07 4.388481365878553e-07 0.026601904065175305" rpy="0 0 0"/>
+    <mass value="0.4905451466770211"/>
+    <inertia ixx="0.000162" iyy="0.000178" izz="0.0001" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.000496 0.000244 -0.048097" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/PX-100_Shoulder_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.000496 0.000244 -0.048097" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/PX-100_Shoulder_v3_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="SIMPLIFIED_-_PXA-100-UA_v4_1_1">
+  <inertial>
+    <origin xyz="0.018999718814712328 -0.01210979703858803 0.08495537669956192" rpy="0 0 0"/>
+    <mass value="0.41973563736332853"/>
+    <inertia ixx="0.000443" iyy="0.000448" izz="0.000181" ixy="0.0" iyz="7.7e-05" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.019496 0.000244 -0.092547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SIMPLIFIED_-_PXA-100-UA_v4_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.019496 0.000244 -0.092547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/SIMPLIFIED_-_PXA-100-UA_v4_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="Fore_-_1_-_PX-100_v2_1_1">
+  <inertial>
+    <origin xyz="-0.019000280988398795 -0.06831678506176855 -2.157577554118273e-07" rpy="0 0 0"/>
+    <mass value="0.6755278835789408"/>
+    <inertia ixx="0.00048" iyy="0.000135" izz="0.000541" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.018504 0.035244 -0.192547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/Fore_-_1_-_PX-100_v2_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.018504 0.035244 -0.192547" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://PXA-100_description/meshes/Fore_-_1_-_PX-100_v2_1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="Revolute 15" type="continuous">
+  <origin xyz="0.0 -0.1 0.0" rpy="0 0 0"/>
+  <parent link="Fore_-_1_-_PX-100_v2_1_1"/>
+  <child link="PX100_SRG_v3_1_1"/>
+  <axis xyz="1.0 -0.0 0.0"/>
+</joint>
+
+<joint name="Slider 16" type="prismatic">
+  <origin xyz="0.030998 -0.086 1e-06" rpy="0 0 0"/>
+  <parent link="PX100_SRG_v3_1_1"/>
+  <child link="SRG_Carriage_With_Finger_v3_1_1"/>
+  <axis xyz="1.0 -0.0 1e-06"/>
+  <limit upper="0.0" lower="0.0" effort="100" velocity="100"/>
+</joint>
+
+<joint name="Slider 17" type="prismatic">
+  <origin xyz="-0.069002 -0.086 1e-06" rpy="0 0 0"/>
+  <parent link="PX100_SRG_v3_1_1"/>
+  <child link="SRG_Carriage_With_Finger_v3_2_1"/>
+  <axis xyz="-1.0 0.0 -1e-06"/>
+  <limit upper="0.0" lower="0.0" effort="100" velocity="100"/>
+</joint>
+
+<joint name="Revolute 18" type="continuous">
+  <origin xyz="-0.000496 -0.000244 0.048097" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="PX-100_Shoulder_v3_1_1"/>
+  <axis xyz="-0.0 -0.0 1.0"/>
+</joint>
+
+<joint name="Revolute 19" type="continuous">
+  <origin xyz="-0.019 0.0 0.04445" rpy="0 0 0"/>
+  <parent link="PX-100_Shoulder_v3_1_1"/>
+  <child link="SIMPLIFIED_-_PXA-100-UA_v4_1_1"/>
+  <axis xyz="-1.0 0.0 -0.0"/>
+</joint>
+
+<joint name="Revolute 20" type="continuous">
+  <origin xyz="0.038 -0.035 0.1" rpy="0 0 0"/>
+  <parent link="SIMPLIFIED_-_PXA-100-UA_v4_1_1"/>
+  <child link="Fore_-_1_-_PX-100_v2_1_1"/>
+  <axis xyz="1.0 -0.0 0.0"/>
+</joint>
+
+</robot>
