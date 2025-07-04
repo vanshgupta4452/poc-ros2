@@ -228,6 +228,9 @@ private:
     std::set<std::string> collided_links;
     std::vector<std::pair<std::string, std::string>> collided_pairs;
     std::set<std::pair<std::string, std::string>> adjacent_pairs;
+    bool coll_dist=false;
+    std::set<std::string> predicted_links;
+
 
     // Build adjacent pairs (parent-child relationships)
     for (const auto &joint : model_.joints_) {
@@ -241,27 +244,69 @@ private:
     for (auto it1 = collision_objects_.begin(); it1 != collision_objects_.end(); ++it1) {
       for (auto it2 = std::next(it1); it2 != collision_objects_.end(); ++it2) {
         // Skip adjacent links
-        if (adjacent_pairs.count({it1->first, it2->first})) continue;
+       fcl::CollisionRequestd request;
+        request.enable_contact = true;
+        request.num_max_contacts = 100;
 
-        fcl::CollisionRequestd request;
         fcl::CollisionResultd result;
         fcl::collide(it1->second.get(), it2->second.get(), request, result);
 
+        fcl::DistanceRequestd requestd;
+        fcl::DistanceResultd resultd;
+        fcl::distance(it1->second.get(), it2->second.get(), requestd, resultd);
+        visualization_msgs::msg::MarkerArray marker_array;
+        visualization_msgs::msg::Marker marker;
+        bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
+         if (resultd.min_distance < 0.02 && !is_adjacent) { // 2 cm threshold
+          
+          coll_dist=true;
+          predicted_links.insert(it1->first);
+          predicted_links.insert(it2->first);
+
+           RCLCPP_WARN(this->get_logger(), "[PREDICT] %s <-> %s, distance = %.3f m",
+                  it1->first.c_str(), it2->first.c_str(), resultd.min_distance);
+        }
+       
+
         if (result.isCollision()) {
+          bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
+
+          if (is_adjacent) {
+            std::vector<fcl::Contactd> contacts;
+            result.getContacts(contacts);
+
+            double max_penetration = 0.0;
+            for (const auto& contact : contacts) {
+              if (contact.penetration_depth > max_penetration) {
+                max_penetration = contact.penetration_depth;
+              }
+            }
+
+            double v1 = it1->second->getAABB().volume();
+            double v2 = it2->second->getAABB().volume();
+            double min_vol = std::min(v1, v2);
+            double approx_size = std::cbrt(min_vol);
+            double penetration_ratio = max_penetration / approx_size;
+
+            if (penetration_ratio < 0.5) continue;  // Skip if too small
+          }
+           
+          
           collided_links.insert(it1->first);
           collided_links.insert(it2->first);
           collided_pairs.emplace_back(it1->first, it2->first);
         }
+
       }
     }
 
     // Log collision results
-    if (!collided_pairs.empty()) {
-      RCLCPP_INFO(this->get_logger(), "[COLLISION] Links involved:");
-      for (const auto &[l1, l2] : collided_pairs) {
-        RCLCPP_INFO(this->get_logger(), "- %s <-> %s", l1.c_str(), l2.c_str());
-      }
-    }
+    // if (!collided_pairs.empty()) {
+    //   RCLCPP_INFO(this->get_logger(), "[COLLISION] Links involved:");
+    //   for (const auto &[l1, l2] : collided_pairs) {
+    //     RCLCPP_INFO(this->get_logger(), "- %s <-> %s", l1.c_str(), l2.c_str());
+    //   }
+    // }
 
     // Create visualization markers
     visualization_msgs::msg::MarkerArray marker_array;
@@ -343,6 +388,11 @@ private:
         marker.color.r = 0.0;
         marker.color.g = 1.0;
         marker.color.b = 0.0;
+      }
+      if (predicted_links.count(link_name)) {
+        marker.color.r = 0.0;
+        marker.color.g = 0.0;
+        marker.color.b = 1.0;
       }
       marker.color.a = 0.7;
 
