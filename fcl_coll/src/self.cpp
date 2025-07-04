@@ -228,7 +228,7 @@ private:
     std::set<std::string> collided_links;
     std::vector<std::pair<std::string, std::string>> collided_pairs;
     std::set<std::pair<std::string, std::string>> adjacent_pairs;
-    bool coll_dist=false;
+    // bool coll_dist=false;
     std::set<std::string> predicted_links;
 
 
@@ -259,7 +259,7 @@ private:
         bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
          if (resultd.min_distance < 0.02 && !is_adjacent) { // 2 cm threshold
           
-          coll_dist=true;
+          // coll_dist=true;
           predicted_links.insert(it1->first);
           predicted_links.insert(it2->first);
 
@@ -288,7 +288,7 @@ private:
             double approx_size = std::cbrt(min_vol);
             double penetration_ratio = max_penetration / approx_size;
 
-            if (penetration_ratio < 0.5) continue;  // Skip if too small
+            if (penetration_ratio < 0.45) continue;  // Skip if too small
           }
            
           
@@ -301,12 +301,12 @@ private:
     }
 
     // Log collision results
-    // if (!collided_pairs.empty()) {
-    //   RCLCPP_INFO(this->get_logger(), "[COLLISION] Links involved:");
-    //   for (const auto &[l1, l2] : collided_pairs) {
-    //     RCLCPP_INFO(this->get_logger(), "- %s <-> %s", l1.c_str(), l2.c_str());
-    //   }
-    // }
+    if (!collided_pairs.empty()) {
+      RCLCPP_INFO(this->get_logger(), "[COLLISION] Links involved:");
+      for (const auto &[l1, l2] : collided_pairs) {
+        RCLCPP_INFO(this->get_logger(), "- %s <-> %s", l1.c_str(), l2.c_str());
+      }
+    }
 
     // Create visualization markers
     visualization_msgs::msg::MarkerArray marker_array;
@@ -384,16 +384,22 @@ private:
         marker.color.r = 1.0;
         marker.color.g = 0.0;
         marker.color.b = 0.0;
-      } else {
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0;
-      }
-      if (predicted_links.count(link_name)) {
+      } 
+      else if(predicted_links.count(link_name) && !collided_links.count(link_name)){
         marker.color.r = 0.0;
         marker.color.g = 0.0;
         marker.color.b = 1.0;
       }
+      else {
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+      }
+      // if (predicted_links.count(link_name)) {
+      //   marker.color.r = 0.0;
+      //   marker.color.g = 0.0;
+      //   marker.color.b = 1.0;
+      // }
       marker.color.a = 0.7;
 
       marker_array.markers.push_back(marker);
