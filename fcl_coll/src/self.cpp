@@ -257,7 +257,7 @@ private:
         visualization_msgs::msg::MarkerArray marker_array;
         visualization_msgs::msg::Marker marker;
         bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
-         if (resultd.min_distance < 0.02 && !is_adjacent) { // 2 cm threshold
+         if (resultd.min_distance < 0.03 && !is_adjacent) { // 2 cm threshold
           
           // coll_dist=true;
           predicted_links.insert(it1->first);
@@ -282,13 +282,13 @@ private:
               }
             }
 
-            double v1 = it1->second->getAABB().volume();
-            double v2 = it2->second->getAABB().volume();
-            double min_vol = std::min(v1, v2);
-            double approx_size = std::cbrt(min_vol);
-            double penetration_ratio = max_penetration / approx_size;
+            // double v1 = it1->second->getAABB().volume();
+            // double v2 = it2->second->getAABB().volume();
+            // double min_vol = std::max(v1, v2);
+            // double approx_size = std::cbrt(min_vol);
+            // double penetration_ratio = max_penetration / approx_size;
 
-            if (penetration_ratio < 0.45) continue;  // Skip if too small
+            if (max_penetration < 0.01) continue;  // Skip if too small
           }
            
           

@@ -2,32 +2,29 @@
 <package format="3">
   <name>kdl_ik_solver</name>
   <version>0.0.1</version>
-  <description>KDL-based inverse kinematics solver for PX100 robot arm</description>
-
-  <maintainer email="vansh4452@gmail.com">Vansh Gupta</maintainer>
-  <license>MIT</license>
+  <description>KDL and TracIK-based IK solver</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>eigen3_cmake_module</build_depend>
-  <build_export_depend>eigen3_cmake_module</build_export_depend>
-  <exec_depend>eigen3_cmake_module</exec_depend>
-
-  <depend>eigen</depend>
-
+  <!-- Build dependencies -->
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>visualization_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>tf2_ros</depend>
   <depend>tf2</depend>
+  <depend>tf2_ros</depend>
   <depend>urdf</depend>
   <depend>kdl_parser</depend>
   <depend>orocos_kdl</depend>
+  <depend>interactive_markers</depend>
 
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
+  <!-- <depend>trac_ik_lib</depend> -->
 
+
+  <!-- Eigen3 is usually included via system packages, no need to declare -->
+  
   <export>
     <build_type>ament_cmake</build_type>
   </export>

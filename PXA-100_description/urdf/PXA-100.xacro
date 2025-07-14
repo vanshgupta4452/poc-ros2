@@ -151,12 +151,45 @@
   </collision>
 </link>
 
+<link name="end">
+  <visual>
+    <origin xyz="-1.0 0 0.05" rpy="0 0 0"/>
+    <geometry>
+      <box size="0.01 0.01 0.01"/>  <!-- x, y, z size in meters -->
+    </geometry>
+    <material name="blue">
+      <color rgba="0 0 1 1"/>
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="-0.0 0 0.05" rpy="0 0 0"/>
+    <geometry>
+      <box size="0.01 0.01 0.01"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    <mass value="1.0"/>
+    <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+             iyy="0.001" iyz="0.0"
+             izz="0.001"/>
+  </inertial>
+</link>
+
+
 <joint name="Revolute 15" type="continuous">
   <origin xyz="0.0 -0.1 0.0" rpy="0 0 0"/>
   <parent link="Fore_-_1_-_PX-100_v2_1_1"/>
   <child link="PX100_SRG_v3_1_1"/>
   <axis xyz="1.0 -0.0 0.0"/>
 </joint>
+
+<joint name="box_joint" type="fixed">
+  <parent link="PX100_SRG_v3_1_1"/> <!-- ya jis link se jodna hai -->
+  <child link="end"/>
+  <origin xyz="-0.02 -0.1 0" rpy="0 0 0"/>
+</joint>
+
 
 <joint name="Slider 16" type="prismatic">
   <origin xyz="0.030998 -0.086 1e-06" rpy="0 0 0"/>

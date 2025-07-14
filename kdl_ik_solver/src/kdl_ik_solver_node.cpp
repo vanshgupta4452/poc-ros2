@@ -28,14 +28,19 @@
 using namespace KDL;
 using namespace std::chrono_literals;
 
-// Custom position-only IK solver (same as your original)
+// Custom position-only IK solver (fixed version)
 class PositionOnlyIKSolver {
 private:
     Chain chain_;
     ChainFkSolverPos_recursive fk_solver_;
+    std::vector<std::pair<double, double>> joint_limits_;
     
 public:
     PositionOnlyIKSolver(const Chain& chain) : chain_(chain), fk_solver_(chain) {}
+    
+    void setJointLimits(const std::vector<std::pair<double, double>>& limits) {
+        joint_limits_ = limits;
+    }
     
     int solvePositionIK(const Vector& target_pos, const JntArray& q_init, JntArray& q_result, 
                        double tolerance = 1e-4, int max_iterations = 1000) {
@@ -67,6 +72,11 @@ public:
             double step_size = 0.1;
             for (unsigned int i = 0; i < q_result.rows(); ++i) {
                 q_result(i) += step_size * dq(i);
+                
+                // Apply joint limits after updating the joint position
+                if (!joint_limits_.empty() && i < joint_limits_.size()) {
+                    q_result(i) = std::clamp(q_result(i), joint_limits_[i].first, joint_limits_[i].second);
+                }
             }
         }
         
@@ -100,45 +110,43 @@ private:
         return 0;
     }
     
-  int solvePseudoInverse(const KDL::Jacobian& jac, const KDL::Vector& error, KDL::JntArray& dq) {
-    unsigned int nj = chain_.getNrOfJoints();
+    int solvePseudoInverse(const KDL::Jacobian& jac, const KDL::Vector& error, KDL::JntArray& dq) {
+        unsigned int nj = chain_.getNrOfJoints();
 
-    // Convert KDL Jacobian to Eigen matrix
-    Eigen::Matrix<double, 3, Eigen::Dynamic> J(3, nj);
-    for (unsigned int i = 0; i < nj; ++i) {
-        J(0, i) = jac(0, i);
-        J(1, i) = jac(1, i);
-        J(2, i) = jac(2, i);
+        // Convert KDL Jacobian to Eigen matrix
+        Eigen::Matrix<double, 3, Eigen::Dynamic> J(3, nj);
+        for (unsigned int i = 0; i < nj; ++i) {
+            J(0, i) = jac(0, i);
+            J(1, i) = jac(1, i);
+            J(2, i) = jac(2, i);
+        }
+
+        // Error vector
+        Eigen::Vector3d e(error.x(), error.y(), error.z());
+
+        // Step-by-step evaluation to avoid temporary expression issues
+        Eigen::Matrix3d JJT = J * J.transpose();                             // 3x3 concrete
+        Eigen::Matrix3d damping = 1e-6 * Eigen::Matrix3d::Identity();        // 3x3 concrete
+        Eigen::Matrix3d JJT_damped = JJT + damping;                          // 3x3 concrete
+        Eigen::Matrix3d JJT_inv = JJT_damped.inverse();                      // inverse() now safe
+
+        Eigen::MatrixXd J_pinv = J.transpose() * JJT_inv;                    // (n x 3)
+        Eigen::VectorXd dq_e = J_pinv * e;                                   // (n x 1)
+
+        // Convert result to KDL::JntArray
+        dq.resize(nj);
+        for (unsigned int i = 0; i < nj; ++i) {
+            dq(i) = dq_e(i);
+        }
+
+        return 0;
     }
-
-    // Error vector
-    Eigen::Vector3d e(error.x(), error.y(), error.z());
-
-    // ✅ Step-by-step evaluation to avoid temporary expression issues
-    Eigen::Matrix3d JJT = J * J.transpose();                             // 3x3 concrete
-    Eigen::Matrix3d damping = 1e-6 * Eigen::Matrix3d::Identity();        // 3x3 concrete
-    Eigen::Matrix3d JJT_damped = JJT + damping;                          // 3x3 concrete
-    Eigen::Matrix3d JJT_inv = JJT_damped.inverse();                      // ✅ inverse() now safe
-
-    Eigen::MatrixXd J_pinv = J.transpose() * JJT_inv;                    // (n x 3)
-    Eigen::VectorXd dq_e = J_pinv * e;                                   // (n x 1)
-
-    // Convert result to KDL::JntArray
-    dq.resize(nj);
-    for (unsigned int i = 0; i < nj; ++i) {
-        dq(i) = dq_e(i);
-    }
-
-    return 0;
-}
-
-
-
-
 };
 
 class IKVisualizerNode : public rclcpp::Node {
 public:
+    std::vector<std::pair<double, double>> joint_limits_;
+
     IKVisualizerNode() : Node("ik_visualizer"), 
                          tf_broadcaster_(this),
                          static_tf_broadcaster_(this),
@@ -156,6 +164,9 @@ public:
 
         fk_solver_ = std::make_unique<ChainFkSolverPos_recursive>(kdl_chain_);
         pos_ik_solver_ = std::make_unique<PositionOnlyIKSolver>(kdl_chain_);
+        
+        // Set joint limits for the IK solver
+        pos_ik_solver_->setJointLimits(joint_limits_);
 
         current_joint_positions_ = JntArray(kdl_chain_.getNrOfJoints());
         target_joint_positions_ = JntArray(kdl_chain_.getNrOfJoints());
@@ -195,7 +206,7 @@ private:
         }
         
         std::string base_link = "base_link";
-        std::string tip_link = "PX100_SRG_v3_1_1";
+        std::string tip_link = "end";
         
         if (!kdl_tree.getChain(base_link, tip_link, kdl_chain_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to extract chain from %s to %s", 
@@ -204,7 +215,24 @@ private:
         }
         
         // Initialize joint names
-        joint_names_ = {"Revolute 18", "Revolute 19", "Revolute 20", "Revolute 15"};
+        joint_names_ = {"Revolute 18", "Revolute 19", "Revolute 20", "Revolute 15" };
+
+        // Extract joint limits from URDF
+        for (const auto& joint_name : joint_names_) {
+            auto joint = robot_model.getJoint(joint_name);
+            if (joint && joint->type != urdf::Joint::FIXED) {
+                if (joint->limits) {
+                    joint_limits_.emplace_back(joint->limits->lower, joint->limits->upper);
+                    RCLCPP_INFO(this->get_logger(), "Joint %s limits: [%.3f, %.3f]", 
+                               joint_name.c_str(), joint->limits->lower, joint->limits->upper);
+                } else {
+                    // If no limits defined, assume full rotation (like continuous)
+                    joint_limits_.emplace_back(-M_PI, M_PI);
+                    RCLCPP_INFO(this->get_logger(), "Joint %s: no limits found, using [-π, π]", 
+                               joint_name.c_str());
+                }
+            }
+        }
         
         RCLCPP_INFO(this->get_logger(), "Successfully loaded robot model with %d joints", 
                    kdl_chain_.getNrOfJoints());
@@ -220,8 +248,15 @@ private:
         for (int i = 0; i < num_samples; ++i) {
             JntArray q(kdl_chain_.getNrOfJoints());
             
+            // Generate random joint angles within joint limits
             for (unsigned int j = 0; j < q.rows(); ++j) {
-                q(j) = ((double)rand() / RAND_MAX - 0.5) * 2 * M_PI;
+                if (j < joint_limits_.size()) {
+                    double lower = joint_limits_[j].first;
+                    double upper = joint_limits_[j].second;
+                    q(j) = lower + ((double)rand() / RAND_MAX) * (upper - lower);
+                } else {
+                    q(j) = ((double)rand() / RAND_MAX - 0.5) * 2 * M_PI;
+                }
             }
             
             Frame result;
@@ -234,16 +269,19 @@ private:
     }
     
     void initializeTestTargets() {
+        Frame current_frame;
         // Original target and closest reachable point
-        Vector original_target(0.05, 0.0, 0.05);
-        Vector closest_reachable = findClosestReachablePoint(original_target);
-        
+        Vector original_target(0.1, 0.1, 0.05);
+        Vector base_pos = current_frame.p;
+
         test_targets_ = {
-            Vector(0.02, -0.13, 0.19),
-            Vector(0.05, -0.12, 0.20),
-            Vector(0.01, -0.14, 0.18),
-            closest_reachable
+            Vector(0.2, 0.0, 0.3),
+            Vector(0.1, 0.1, 0.2),
+            Vector(0.15, -0.05, 0.25),
+            Vector(0.2, 0.05, 0.35),
+            Vector(0.1, -0.1, 0.3)
         };
+
         
         current_target_index_ = 0;
         target_update_counter_ = 0;
@@ -268,7 +306,39 @@ private:
         return closest;
     }
     
-     void timerCallback() {
+    // Method to print position error
+    void printPositionError(const Vector& target, const JntArray& joint_positions) {
+        Frame end_effector_frame;
+        if (fk_solver_->JntToCart(joint_positions, end_effector_frame) >= 0) {
+            Vector current_pos = end_effector_frame.p;
+            Vector error = target - current_pos;
+            double error_magnitude = error.Norm();
+            
+            RCLCPP_INFO(this->get_logger(), 
+                       "Target: [%.4f, %.4f, %.4f] | Current: [%.4f, %.4f, %.4f] | Error: %.6f m",
+                       target.x(), target.y(), target.z(),
+                       current_pos.x(), current_pos.y(), current_pos.z(),
+                       error_magnitude);
+        }
+    }
+
+    // Throttled version - prints error every 500ms
+    void printPositionErrorThrottled(const Vector& target, const JntArray& joint_positions) {
+        Frame end_effector_frame;
+        if (fk_solver_->JntToCart(joint_positions, end_effector_frame) >= 0) {
+            Vector current_pos = end_effector_frame.p;
+            Vector error = target - current_pos;
+            double error_magnitude = error.Norm();
+            
+            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 500,
+                       "Target: [%.4f, %.4f, %.4f] | Current: [%.4f, %.4f, %.4f] | Error: %.6f m",
+                       target.x(), target.y(), target.z(),
+                       current_pos.x(), current_pos.y(), current_pos.z(),
+                       error_magnitude);
+        }
+    }
+    
+    void timerCallback() {
         bool updated = false;
         for (unsigned int i = 0; i < current_joint_positions_.rows(); ++i) {
             double delta = target_joint_positions_(i) - current_joint_positions_(i);
@@ -276,8 +346,12 @@ private:
             if (std::abs(delta) > step) {
                 current_joint_positions_(i) += (delta > 0 ? 1 : -1) * step;
                 updated = true;
-            } else {
+            } else if(delta<=0.001) {
                 current_joint_positions_(i) = target_joint_positions_(i);
+            }
+            else{
+                current_joint_positions_(i) += (delta > 0 ? 0.01 : -0.01) * step;
+                updated = true;
             }
         }
 
@@ -287,6 +361,9 @@ private:
 
         Vector current_target = test_targets_[current_target_index_];
         publishVisualizationMarkers(current_target, current_joint_positions_);
+        
+        // Print position error (throttled version to avoid spam)
+        printPositionErrorThrottled(current_target, current_joint_positions_);
 
         if (!updated && reached_target_) {
             reached_target_ = false;
@@ -306,10 +383,19 @@ private:
                     first_solution_received_ = true;
                     suppress_initial_teleport_ = false;
                 }
+                RCLCPP_INFO(this->get_logger(), "IK converged in %d iterations for target %d", 
+                           result, current_target_index_ + 1);
             } else {
                 // Retry with zero initialization as fallback
                 JntArray fallback_q(kdl_chain_.getNrOfJoints());
-                for (unsigned int i = 0; i < fallback_q.rows(); ++i) fallback_q(i) = 0.0;
+                for (unsigned int i = 0; i < fallback_q.rows(); ++i) {
+                    // Initialize within joint limits
+                    if (i < joint_limits_.size()) {
+                        fallback_q(i) = (joint_limits_[i].first + joint_limits_[i].second) / 2.0;
+                    } else {
+                        fallback_q(i) = 0.0;
+                    }
+                }
 
                 if (pos_ik_solver_->solvePositionIK(next_target, fallback_q, q_result) >= 0) {
                     RCLCPP_WARN(this->get_logger(), "Fallback IK succeeded for target %d", current_target_index_ + 1);
@@ -482,7 +568,6 @@ private:
     bool first_solution_received_;
     bool reached_target_;
     bool suppress_initial_teleport_;
-
 };
 
 int main(int argc, char** argv) {
