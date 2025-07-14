@@ -78,7 +78,11 @@ private:
     // Performance tracking
     int successful_solutions_;
     int failed_solutions_;
-    double average_solve_time_;
+    
+    urdf::Model robot_model_;
+    double average_solve_time_ = 0.0;
+
+
     
 public:
     ImprovedTrackIKNode() : Node("improved_trackik_node"), 
@@ -114,12 +118,16 @@ public:
             RCLCPP_ERROR(this->get_logger(), "Failed to load robot model");
             return;
         }
+        robot_model_.initString(urdf_string_);
 
         // Initialize solvers
         if (!initializeSolvers()) {
             RCLCPP_ERROR(this->get_logger(), "Failed to initialize solvers");
             return;
         }
+
+        robot_model_.initString(urdf_string_);
+
 
         // Initialize test targets
         initializeTestTargets();
@@ -153,15 +161,15 @@ private:
         urdf_file.close();
         
         // Parse URDF
-        urdf::Model robot_model;
-        if (!robot_model.initString(urdf_string_)) {
+        // urdf::Model robot_model;
+        if (!robot_model_.initString(urdf_string_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to parse URDF");
             return false;
         }
         
         // Build KDL tree
         KDL::Tree kdl_tree;
-        if (!kdl_parser::treeFromUrdfModel(robot_model, kdl_tree)) {
+        if (!kdl_parser::treeFromUrdfModel(robot_model_, kdl_tree)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to convert URDF to KDL Tree");
             return false;
         }
@@ -187,7 +195,7 @@ private:
         
         // Fallback joint names if extraction fails
         if (joint_names_.empty()) {
-            joint_names_ = {"Revolute 18", "Revolute 19", "Revolute 20", "Revolute 15"};
+            joint_names_ = {"Revolute_18", "Revolute_19", "Revolute_20", "Revolute_15"};
         }
         
         RCLCPP_INFO(this->get_logger(), "Successfully loaded robot model with %d joints", 
@@ -204,7 +212,7 @@ private:
         std::string base_link = "base_link";
         std::string tip_link = "end";
         
-        double timeout = 0.01;   // Increased timeout to 10ms
+        double timeout = 0.1;   // Increased timeout to 10ms
         double eps = 5e-3;       // Relaxed tolerance to 5mm
         
         RCLCPP_INFO(this->get_logger(), "Initializing Track-IK with timeout=%.3f, eps=%.6f", timeout, eps);
@@ -218,6 +226,15 @@ private:
             RCLCPP_ERROR(this->get_logger(), "Failed to get KDL chain from Track-IK");
             return false;
         }
+
+        KDL::Chain trac_chain;
+        tracik_solver_->getKDLChain(trac_chain);
+        RCLCPP_INFO(this->get_logger(), "TRAC-IK Joint Order:");
+        for (unsigned int i = 0; i < trac_chain.getNrOfSegments(); ++i) {
+            if (trac_chain.getSegment(i).getJoint().getType() != KDL::Joint::None)
+                RCLCPP_INFO(this->get_logger(), "  %s", trac_chain.getSegment(i).getJoint().getName().c_str());
+        }
+
     
         
         // Initialize joint arrays
@@ -225,8 +242,41 @@ private:
         current_joint_positions_ = JntArray(nj);
         target_joint_positions_ = JntArray(nj);
         joint_velocities_ = JntArray(nj);
+        // ✅ Extract joint limits once
+        joint_limits_.clear();
+      
+        for (const auto& name : joint_names_) {
+            auto joint = robot_model_.getJoint(name);
+            if (!joint) {
+                RCLCPP_WARN(this->get_logger(), "Joint '%s' not found in URDF!", name.c_str());
+            }
+            else if (joint->type != urdf::Joint::CONTINUOUS && joint->limits) {
+                if (joint->limits->upper == joint->limits->lower) {
+                    RCLCPP_WARN(this->get_logger(), "Joint '%s' has identical upper and lower limits!", name.c_str());
+                }
+                joint_limits_.emplace_back(joint->limits->lower, joint->limits->upper);
+            } else {
+                joint_limits_.emplace_back(-M_PI, M_PI);
+            }
+        }
         
-        // Initialize to safe mid-range positions
+        if (joint_limits_.size() != kdl_chain_.getNrOfJoints()) {
+            RCLCPP_ERROR(this->get_logger(), "Joint limits size (%ld) doesn't match number of joints in KDL chain (%d)",
+                        joint_limits_.size(), kdl_chain_.getNrOfJoints());
+        }
+
+
+        for (size_t i = 0; i < current_joint_positions_.rows(); ++i) {
+            auto [lo, hi] = joint_limits_[i];
+            if (current_joint_positions_(i) < lo || current_joint_positions_(i) > hi) {
+                RCLCPP_WARN(this->get_logger(), "Initial joint %ld value %.3f is out of limits [%.3f, %.3f]!",
+                            i, current_joint_positions_(i), lo, hi);
+            }
+        }
+
+
+
+        // ✅ Now use limits to initialize joints
         for (unsigned int i = 0; i < nj; ++i) {
             if (i < joint_limits_.size()) {
                 current_joint_positions_(i) = (joint_limits_[i].first + joint_limits_[i].second) / 2.0;
@@ -264,23 +314,23 @@ private:
                        
             
             // Create conservative test targets around current position
-            test_targets_ = {
-                base_pos,                                    // Current position
-                base_pos + Vector(0.0, 0.1, 0.0),         // Small +Y movement
-                base_pos + Vector(0.0, -0.05, 0.0),        // Small -Y movement
-                base_pos + Vector(0.0, 0.0, 0.05),         // Small +Z movement
-                base_pos + Vector(0.0, 0.0, -0.1),
-                      // Small -Z movement
-               
-            };
-            
             // test_targets_ = {
-            //         Vector(0.2, 0.0, 0.3),
-            //         Vector(0.1, 0.1, 0.2),
-            //         Vector(0.15, -0.05, 0.25),
-            //         Vector(0.2, 0.05, 0.35),
-            //         Vector(0.1, -0.1, 0.3)
-            //     };
+            //     base_pos,                                    // Current position
+            //     base_pos + Vector(0.0, 0.1, 0.0),         // Small +Y movement
+            //     base_pos + Vector(0.0, -0.05, 0.0),        // Small -Y movement
+            //     base_pos + Vector(0.0, 0.0, 0.05),         // Small +Z movement
+            //     base_pos + Vector(0.0, 0.0, -0.1),
+            //           // Small -Z movement
+               
+            // };
+            
+            test_targets_ = {
+                    Vector(0.0, 0.0, 0.2),
+                    Vector(0.0, -0.05, 0.2),
+                    Vector(0.0, -0.2, 0.1),
+                   
+                    Vector(0.1, -0.0, 0.1)
+                };
 
             
             // Test all targets and keep only reachable ones
@@ -412,7 +462,7 @@ private:
         // Create target frame with identity orientation (no orientation constraint)
         Frame target_frame;
         target_frame.p = target_pos;
-        target_frame.M = Rotation::Identity();  // Don't constrain orientation
+        // target_frame.M = Rotation::Identity();  // Don't constrain orientation
         
         q_result = JntArray(kdl_chain_.getNrOfJoints());
         

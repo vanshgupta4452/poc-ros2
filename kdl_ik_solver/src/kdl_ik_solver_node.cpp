@@ -274,14 +274,20 @@ private:
         Vector original_target(0.1, 0.1, 0.05);
         Vector base_pos = current_frame.p;
 
+        // test_targets_ = {
+        //     base_pos,
+        //     Vector(0.1, -0.13, 0.19),
+        //     Vector(0.1, -0.12, 0.20),
+         
+        //     findClosestReachablePoint(Vector(0.1, 0.1, 0.05))
+        // };
         test_targets_ = {
-            Vector(0.2, 0.0, 0.3),
-            Vector(0.1, 0.1, 0.2),
-            Vector(0.15, -0.05, 0.25),
-            Vector(0.2, 0.05, 0.35),
-            Vector(0.1, -0.1, 0.3)
-        };
-
+                    Vector(0.2, 0.0, 0.3),
+                    Vector(0.1, 0.1, 0.2),
+                    Vector(0.15, -0.05, 0.25),
+                  
+                    Vector(0.1, -0.1, 0.3)
+                };
         
         current_target_index_ = 0;
         target_update_counter_ = 0;
