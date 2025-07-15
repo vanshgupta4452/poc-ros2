@@ -257,7 +257,7 @@ private:
         visualization_msgs::msg::MarkerArray marker_array;
         visualization_msgs::msg::Marker marker;
         bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
-         if (resultd.min_distance < 0.03 && !is_adjacent) { // 2 cm threshold
+         if (resultd.min_distance < 0.01 && !is_adjacent) { // 2 cm threshold
           
           // coll_dist=true;
           predicted_links.insert(it1->first);

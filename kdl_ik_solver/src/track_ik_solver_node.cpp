@@ -382,10 +382,10 @@ private:
             return false;
         }
         
-        if (distance > 0.8) {  // Conservative upper bound
-            RCLCPP_WARN(this->get_logger(), "Target too far from origin: %.3f m", distance);
-            return false;
-        }
+        // if (distance > 0.8) {  // Conservative upper bound
+        //     RCLCPP_WARN(this->get_logger(), "Target too far from origin: %.3f m", distance);
+        //     return false;
+        // }
         
         // Check if target is not too close to base
         if (std::abs(target.z()) < 0.001) {
@@ -579,7 +579,7 @@ private:
                 double step = std::min(std::abs(delta), max_step);
                 
                 current_joint_positions_(i) += (delta > 0 ? 0.01 : -0.01) * step;
-                joint_velocities_(i) = (delta > 0 ? 0.001 : -0.001) * step / 0.05;
+                joint_velocities_(i) = (delta > 0 ? 0.0001 : -0.0001) * step / 0.05;
                 joints_moving = true;
             }
         }
