@@ -147,7 +147,7 @@ public:
 private:
     bool loadRobotModel() {
         // Load URDF file
-        std::string urdf_path = "/home/vansh/intern-ardee/src/fcl-ros2/PXA-100_description/urdf/px.urdf";
+        std::string urdf_path = "/home/vansh/intern-ardee/src/fcl-ros2/ajgar_description/urdf/arm.urdf";
         
         std::ifstream urdf_file(urdf_path);
         if (!urdf_file.is_open()) {
@@ -176,7 +176,7 @@ private:
         
         // Extract chain
         std::string base_link = "base_link";
-        std::string tip_link = "end";
+        std::string tip_link = "end__1";
         
         if (!kdl_tree.getChain(base_link, tip_link, kdl_chain_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to extract chain from %s to %s", 
@@ -195,7 +195,14 @@ private:
         
         // Fallback joint names if extraction fails
         if (joint_names_.empty()) {
-            joint_names_ = {"Revolute_18", "Revolute_19", "Revolute_20", "Revolute_15"};
+            joint_names_ = {
+            "shoulder_joint",
+            "arm_joint",
+            "forearm_joint",
+            "end_joint",
+            "suction_joint"
+            };
+
         }
         
         RCLCPP_INFO(this->get_logger(), "Successfully loaded robot model with %d joints", 
@@ -210,7 +217,7 @@ private:
         
         // Initialize Track-IK solver with more relaxed settings
         std::string base_link = "base_link";
-        std::string tip_link = "end";
+        std::string tip_link = "end__1";
         
         double timeout = 0.1;   // Increased timeout to 10ms
         double eps = 5e-3;       // Relaxed tolerance to 5mm
@@ -325,11 +332,11 @@ private:
             // };
             
             test_targets_ = {
-                    Vector(0.0, 0.0, 0.2),
-                    Vector(0.0, -0.05, 0.2),
-                    Vector(0.0, -0.2, 0.1),
+                    Vector(0.0, 0.0, 0.5),
+                    Vector(0.0, -0.2, 0.5),
+                    Vector(0.2, -0.2, 0.5),
                    
-                    Vector(0.1, -0.0, 0.1)
+                    // Vector(0.1, -0.0, 0.1)
                 };
 
             

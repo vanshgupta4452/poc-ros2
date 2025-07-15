@@ -180,7 +180,7 @@ public:
 
 private:
     bool loadRobotModel() {
-        std::string urdf_path = "/home/vansh/intern-ardee/src/fcl-ros2/PXA-100_description/urdf/px.urdf";
+        std::string urdf_path = "/home/vansh/intern-ardee/src/fcl-ros2/ajgar_description/urdf/arm.urdf";
         
         std::ifstream urdf_file(urdf_path);
         if (!urdf_file.is_open()) {
@@ -206,7 +206,7 @@ private:
         }
         
         std::string base_link = "base_link";
-        std::string tip_link = "end";
+        std::string tip_link = "end__1";
         
         if (!kdl_tree.getChain(base_link, tip_link, kdl_chain_)) {
             RCLCPP_ERROR(this->get_logger(), "Failed to extract chain from %s to %s", 
@@ -215,7 +215,7 @@ private:
         }
         
         // Initialize joint names
-        joint_names_ = {"Revolute 18", "Revolute 19", "Revolute 20", "Revolute 15" };
+        joint_names_ = {"base_joint","shoulder_joint","arm_joint","forearm_joint","end_joint","suction_joint"};
 
         // Extract joint limits from URDF
         for (const auto& joint_name : joint_names_) {
@@ -271,8 +271,8 @@ private:
     void initializeTestTargets() {
         Frame current_frame;
         // Original target and closest reachable point
-        Vector original_target(0.1, 0.1, 0.05);
-        Vector base_pos = current_frame.p;
+        // Vector original_target(0.1, 0.1, 0.05);
+        // Vector base_pos = current_frame.p;
 
         // test_targets_ = {
         //     base_pos,

@@ -26,13 +26,13 @@ public:
     joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
         "/joint_states", 10, std::bind(&SelfCollisionChecker::jointStateCallback, this, std::placeholders::_1));
 
-    std::string urdf_path = ament_index_cpp::get_package_share_directory("PXA-100_description") + "/urdf/PXA-100.urdf";
+    std::string urdf_path = ament_index_cpp::get_package_share_directory("ajgar_description") + "/urdf/arm.urdf";
     if (!model_.initFile(urdf_path)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to load URDF: %s", urdf_path.c_str());
       return;
     }
 
-    package_share_dir_ = ament_index_cpp::get_package_share_directory("PXA-100_description");
+    package_share_dir_ = ament_index_cpp::get_package_share_directory("ajgar_description");
     setupCollisionObjects();
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
