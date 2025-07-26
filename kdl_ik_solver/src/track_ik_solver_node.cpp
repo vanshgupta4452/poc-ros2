@@ -196,6 +196,7 @@ private:
         // Fallback joint names if extraction fails
         if (joint_names_.empty()) {
             joint_names_ = {
+            "base_joint",
             "shoulder_joint",
             "arm_joint",
             "forearm_joint",
@@ -212,20 +213,19 @@ private:
     }
     
     bool initializeSolvers() {
-        // Initialize Forward Kinematics solver
+        
         fk_solver_ = std::make_unique<ChainFkSolverPos_recursive>(kdl_chain_);
         
-        // Initialize Track-IK solver with more relaxed settings
         std::string base_link = "base_link";
         std::string tip_link = "end__1";
         
         double timeout = 0.1;   // Increased timeout to 10ms
-        double eps = 5e-3;       // Relaxed tolerance to 5mm
+        double eps = 5e-3;       
         
         RCLCPP_INFO(this->get_logger(), "Initializing Track-IK with timeout=%.3f, eps=%.6f", timeout, eps);
         
         tracik_solver_ = std::make_unique<TRAC_IK::TRAC_IK>(
-            base_link, tip_link, urdf_string_, timeout, eps, TRAC_IK::Speed);
+            base_link, tip_link, urdf_string_, timeout, eps, TRAC_IK::Distance);
         
         // Verify Track-IK initialization
         KDL::Chain trac_ik_chain;
@@ -244,12 +244,11 @@ private:
 
     
         
-        // Initialize joint arrays
         unsigned int nj = kdl_chain_.getNrOfJoints();
         current_joint_positions_ = JntArray(nj);
         target_joint_positions_ = JntArray(nj);
         joint_velocities_ = JntArray(nj);
-        // ✅ Extract joint limits once
+        
         joint_limits_.clear();
       
         for (const auto& name : joint_names_) {
@@ -283,7 +282,6 @@ private:
 
 
 
-        // ✅ Now use limits to initialize joints
         for (unsigned int i = 0; i < nj; ++i) {
             if (i < joint_limits_.size()) {
                 current_joint_positions_(i) = (joint_limits_[i].first + joint_limits_[i].second) / 2.0;
@@ -294,7 +292,7 @@ private:
         }
         target_joint_positions_ = current_joint_positions_;
         
-        // Set initial target position and verify it
+        
         Frame initial_frame;
         if (fk_solver_->JntToCart(current_joint_positions_, initial_frame) >= 0) {
             current_target_position_ = initial_frame.p;
@@ -310,7 +308,6 @@ private:
     }
     
     void initializeTestTargets() {
-        // Get current end-effector position
         Frame current_frame;
         if (fk_solver_->JntToCart(current_joint_positions_, current_frame) >= 0) {
             Vector base_pos = current_frame.p;
@@ -332,11 +329,10 @@ private:
             // };
             
             test_targets_ = {
-                    Vector(0.0, 0.0, 0.5),
-                    Vector(0.0, -0.2, 0.5),
-                    Vector(0.2, -0.2, 0.5),
+                    Vector(0.4,0.3,0.7),
+                    Vector(-0.4,0.3,0.7),
                    
-                    // Vector(0.1, -0.0, 0.1)
+                    
                 };
 
             
@@ -382,10 +378,10 @@ private:
             return false;
         }
         
-        // if (distance > 0.8) {  // Conservative upper bound
-        //     RCLCPP_WARN(this->get_logger(), "Target too far from origin: %.3f m", distance);
-        //     return false;
-        // }
+        if (distance > 1.3) {  // Conservative upper bound
+            RCLCPP_WARN(this->get_logger(), "Target too far from origin: %.3f m", distance);
+            return false;
+        }
         
         // Check if target is not too close to base
         if (std::abs(target.z()) < 0.001) {
@@ -398,14 +394,14 @@ private:
     
     void generateWorkspaceSamples() {
         RCLCPP_INFO(this->get_logger(), "Generating workspace samples...");
-        
+
         workspace_points_.clear();
         srand(42);
-        int num_samples = 2000;
-        
+        int num_samples = 160000;
+
         for (int i = 0; i < num_samples; ++i) {
             JntArray q(kdl_chain_.getNrOfJoints());
-            
+
             // Generate random joint angles within limits
             for (unsigned int j = 0; j < q.rows(); ++j) {
                 if (j < joint_limits_.size()) {
@@ -416,15 +412,22 @@ private:
                     q(j) = ((double)rand() / RAND_MAX - 0.5) * 2 * M_PI;
                 }
             }
-            
+
+            // Forward Kinematics
             Frame result;
             if (fk_solver_->JntToCart(q, result) >= 0) {
-                workspace_points_.push_back(result.p);
+                workspace_points_.push_back(result.p);  // Save only after valid FK
+
+                // Print the newly added point
+                // const KDL::Vector& p = result.p;
+                // RCLCPP_INFO(this->get_logger(), "Point %d: [%.3f, %.3f, %.3f]", 
+                //             i, p.x(), p.y(), p.z());
             }
         }
-        
-        RCLCPP_INFO(this->get_logger(), "Generated %zu workspace points", workspace_points_.size());
+
+        RCLCPP_INFO(this->get_logger(), "Generated %zu valid workspace points", workspace_points_.size());
     }
+
     
     void testSolverCapabilities() {
         RCLCPP_INFO(this->get_logger(), "Testing solver capabilities...");
@@ -443,7 +446,7 @@ private:
             if (success) {
                 RCLCPP_INFO(this->get_logger(), "✓ Self-test passed (%.3f ms)", duration.count() / 1000.0);
             } else {
-                RCLCPP_ERROR(this->get_logger(), "✗ Self-test failed");
+                // RCLCPP_ERROR(this->get_logger(), "✗ Self-test failed");
             }
         }
     }
@@ -461,7 +464,7 @@ private:
             return false;
         }
         
-        if (distance_from_origin > 1.0) {
+        if (distance_from_origin > 1.3) {
             RCLCPP_ERROR(this->get_logger(), "Target too far from origin: %.3f m", distance_from_origin);
             return false;
         }
@@ -502,11 +505,12 @@ private:
             
             return true;
         } else {
+            std::cout<<result<<std::endl;
             failed_solutions_++;
             
             // More detailed error reporting
-            RCLCPP_ERROR(this->get_logger(), "Track-IK failed for target [%.3f, %.3f, %.3f]", 
-                        target_pos.x(), target_pos.y(), target_pos.z());
+            // RCLCPP_ERROR(this->get_logger(), "Track-IK failed for target [%.3f, %.3f, %.3f]", 
+            //             target_pos.x(), target_pos.y(), target_pos.z());
             
             switch (result) {
                 case -1:
@@ -515,12 +519,12 @@ private:
                 case -2:
                     RCLCPP_ERROR(this->get_logger(), "Track-IK failed: No solution within tolerance (target may be unreachable)");
                     break;
-                case -3:
-                    RCLCPP_ERROR(this->get_logger(), "Track-IK failed: Invalid inputs (check URDF or joint limits)");
-                    break;
-                default:
-                    RCLCPP_ERROR(this->get_logger(), "Track-IK failed: Unknown error code %d", result);
-                    break;
+                // case -3:
+                //     RCLCPP_ERROR(this->get_logger(), "Track-IK failed: Invalid inputs (check URDF or joint limits)");
+                //     break;
+                // default:
+                //     RCLCPP_ERROR(this->get_logger(), "Track-IK failed: Unknown error code %d", result);
+                //     break;
             }
             
             // Try to find current end-effector position for debugging
@@ -536,7 +540,6 @@ private:
     
     // New callback for point-only commands
     void targetPointCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg) {
-        // Update target from external point command
         current_target_position_ = Vector(msg->point.x, msg->point.y, msg->point.z);
         
         target_reached_ = false;
@@ -544,9 +547,7 @@ private:
                    current_target_position_.x(), current_target_position_.y(), current_target_position_.z());
     }
     
-    // Modified to only use position from pose messages
     void targetPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-        // Update target from external command (ignore orientation)
         current_target_position_ = Vector(msg->pose.position.x, 
                                          msg->pose.position.y, 
                                          msg->pose.position.z);
@@ -567,7 +568,7 @@ private:
                 double step = std::min(std::abs(delta), max_step);
                 
                 current_joint_positions_(i) += (delta > 0 ? 1 : -1) * step;
-                joint_velocities_(i) = (delta > 0 ? 0.01 : -0.01) * step / 0.05;
+                joint_velocities_(i) = (delta > 0 ? 0.005 : -0.005) * step / 0.05;
                 joints_moving = true;
             } 
             else if(delta<=0.0001){

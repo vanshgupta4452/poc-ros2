@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<robot name="Station" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find Station_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find Station_description)/urdf/Station.trans" />
+<xacro:include filename="$(find Station_description)/urdf/Station.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="6.500489351599395e-06 0.44924220170917684 -0.03063138184253422" rpy="0 0 0"/>
+    <mass value="84.44124651406766"/>
+    <inertia ixx="2.200006" iyy="0.717611" izz="1.690187" ixy="0.000134" iyz="0.252031" ixz="-7.2e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.05 0.45 0.1" rpy="1.5708 0 0"/>
+    <geometry>
+      <mesh filename="package://Station_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0.05 0.45 0.1" rpy="1.5708 0 0"/>
+    <geometry>
+      <mesh filename="package://Station_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+</robot>

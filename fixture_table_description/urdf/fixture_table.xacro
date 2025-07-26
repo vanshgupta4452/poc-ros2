@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<robot name="fixture_table" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find fixture_table_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find fixture_table_description)/urdf/fixture_table.trans" />
+<xacro:include filename="$(find fixture_table_description)/urdf/fixture_table.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="0.0 0.0 -0.31" rpy="0 0 0"/>
+    <mass value="2825.9999999999995"/>
+    <inertia ixx="832.9164" iyy="2183.7444" izz="2481.228" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find fixture_table_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find fixture_table_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+</robot>

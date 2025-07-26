@@ -46,7 +46,12 @@ def generate_launch_description():
         executable='joint_state_publisher_gui',
         name='joint_state_publisher_gui'
     )
-
+    static_tf=Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='static_tf_pub_world_to_base',
+            arguments=['0', '0', '0', '0', '0', '0', 'world', 'base_link']
+        )
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -60,5 +65,6 @@ def generate_launch_description():
         robot_state_publisher_node,
         joint_state_publisher_node,
         # joint_state_publisher_gui_node,
-        rviz_node
+        rviz_node,
+        # static_tf
     ])
