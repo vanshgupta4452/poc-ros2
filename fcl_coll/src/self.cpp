@@ -59,7 +59,7 @@ public:
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), 
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(1), 
                                     std::bind(&SelfCollisionChecker::checkCollisions, this));
 
                                   
@@ -360,7 +360,7 @@ private:
         bool is_adjacent = adjacent_pairs.count({it1->first, it2->first});
         
         // Prediction check
-        if (resultd.min_distance < 0.01 && !is_adjacent) {
+        if (resultd.min_distance < 0.005 && !is_adjacent) {
           arm_predicted_links.insert(it1->first);
           arm_predicted_links.insert(it2->first);
           RCLCPP_WARN(this->get_logger(), "[ARM PREDICT] %s <-> %s, distance = %.3f m",

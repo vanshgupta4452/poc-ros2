@@ -25,7 +25,7 @@
 
 <transmission name="arm_joint _tran">
   <type>transmission_interface/SimpleTransmission</type>
-  <joint name="arm_joint">
+  <joint name="arm_joint ">
     <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
   </joint>
   <actuator name="arm_joint _actr">

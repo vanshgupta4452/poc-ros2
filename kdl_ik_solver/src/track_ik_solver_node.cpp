@@ -329,8 +329,8 @@ private:
             // };
             
             test_targets_ = {
-                    Vector(0.4,0.3,0.7),
-                    Vector(-0.4,0.3,0.7),
+                    Vector(0.4,0.3,0.2),
+                    Vector(-0.4,0.3,0.2),
                    
                     
                 };
@@ -567,7 +567,7 @@ private:
                 double max_step = joint_velocity_limit_ * 0.05; // 50ms timestep
                 double step = std::min(std::abs(delta), max_step);
                 
-                current_joint_positions_(i) += (delta > 0 ? 1 : -1) * step;
+                current_joint_positions_(i) += (delta > 0 ? 0.5 : -0.5) * step;
                 joint_velocities_(i) = (delta > 0 ? 0.005 : -0.005) * step / 0.05;
                 joints_moving = true;
             } 

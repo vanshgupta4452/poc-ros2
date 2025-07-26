@@ -6,7 +6,7 @@
 <xacro:include filename="$(find ajgar_description)/urdf/ajgar.gazebo" />
 <link name="base_link">
   <inertial>
-    <origin xyz="-0.00865082588772398 1.811391194877882e-07 0.5323683739088798" rpy="0 0 0"/>
+    <origin xyz="-0.008650825887724329 1.811391191547213e-07 0.03236837390888462" rpy="0 0 0"/>
     <mass value="9.059758934586307"/>
     <inertia ixx="0.021583" iyy="0.026795" izz="0.042202" ixy="-0.0" iyz="-0.0" ixz="0.000269"/>
   </inertial>
@@ -27,19 +27,19 @@
 
 <link name="base_top_1">
   <inertial>
-    <origin xyz="0.0011538900214104787 -0.001972991642273287 0.03289309768621396" rpy="0 0 0"/>
+    <origin xyz="0.0011538900214101422 -0.001972991642273625 0.03289309768621872" rpy="0 0 0"/>
     <mass value="1.4850383611977547"/>
     <inertia ixx="0.002033" iyy="0.001851" izz="0.001747" ixy="0.000158" iyz="0.000103" ixz="-5.9e-05"/>
   </inertial>
   <visual>
-    <origin xyz="0.015013 -0.0 -0.56" rpy="0 0 0"/>
+    <origin xyz="0.015013 -0.0 -0.06" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/base_top_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.015013 -0.0 -0.56" rpy="0 0 0"/>
+    <origin xyz="0.015013 -0.0 -0.06" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/base_top_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -48,19 +48,19 @@
 
 <link name="shoulder_1">
   <inertial>
-    <origin xyz="-0.06454165074507318 -0.007490465134806484 0.10330243384041848" rpy="0 0 0"/>
+    <origin xyz="-0.0645416507450735 -0.007490465134806879 0.1033024338404234" rpy="0 0 0"/>
     <mass value="2.8383656665985857"/>
     <inertia ixx="0.025361" iyy="0.02813" izz="0.009403" ixy="-0.003171" iyz="0.0066" ixz="0.010094"/>
   </inertial>
   <visual>
-    <origin xyz="0.002513 0.021651 -0.619368" rpy="0 0 0"/>
+    <origin xyz="0.002513 0.021651 -0.119368" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/shoulder_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.002513 0.021651 -0.619368" rpy="0 0 0"/>
+    <origin xyz="0.002513 0.021651 -0.119368" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/shoulder_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -69,19 +69,19 @@
 
 <link name="elbow_1">
   <inertial>
-    <origin xyz="0.051684546171817614 0.060697692588179655 0.07557423446744749" rpy="0 0 0"/>
+    <origin xyz="0.05168454617181718 0.060697692588179336 0.07557423446745226" rpy="0 0 0"/>
     <mass value="2.4072821039747727"/>
     <inertia ixx="0.017139" iyy="0.023806" izz="0.01394" ixy="-0.005334" iyz="-0.006001" ixz="-0.010844"/>
   </inertial>
   <visual>
-    <origin xyz="0.114229 0.08615 -0.8428" rpy="0 0 0"/>
+    <origin xyz="0.114229 0.08615 -0.3428" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/elbow_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.114229 0.08615 -0.8428" rpy="0 0 0"/>
+    <origin xyz="0.114229 0.08615 -0.3428" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/elbow_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -90,19 +90,19 @@
 
 <link name="wrist_1">
   <inertial>
-    <origin xyz="0.025353295228808588 0.013018429572598328 0.008074379596327619" rpy="0 0 0"/>
+    <origin xyz="0.02535329522880813 0.013018429572597974 0.008074379596332282" rpy="0 0 0"/>
     <mass value="0.34678950211541076"/>
     <inertia ixx="0.000292" iyy="0.00059" izz="0.000541" ixy="-1.6e-05" iyz="-3.8e-05" ixz="0.000146"/>
   </inertial>
   <visual>
-    <origin xyz="-0.037081 -0.030076 -1.031951" rpy="0 0 0"/>
+    <origin xyz="-0.037081 -0.030076 -0.531951" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/wrist_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="-0.037081 -0.030076 -1.031951" rpy="0 0 0"/>
+    <origin xyz="-0.037081 -0.030076 -0.531951" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/wrist_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -111,19 +111,19 @@
 
 <link name="suction_1">
   <inertial>
-    <origin xyz="-0.028657029142344456 0.013241859961258727 0.018361891818294396" rpy="0 0 0"/>
+    <origin xyz="-0.028657029142344942 0.013241859961258373 0.01836189181829917" rpy="0 0 0"/>
     <mass value="0.6053245769138885"/>
     <inertia ixx="0.000451" iyy="0.000517" izz="0.00046" ixy="5.8e-05" iyz="5e-06" ixz="4.1e-05"/>
   </inertial>
   <visual>
-    <origin xyz="-0.09374 -0.032578 -1.045271" rpy="0 0 0"/>
+    <origin xyz="-0.09374 -0.032578 -0.545271" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/suction_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="-0.09374 -0.032578 -1.045271" rpy="0 0 0"/>
+    <origin xyz="-0.09374 -0.032578 -0.545271" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/suction_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -132,19 +132,19 @@
 
 <link name="end__1">
   <inertial>
-    <origin xyz="-0.0052979346222463974 -0.006164456334156285 -0.0038664642263130933" rpy="0 0 0"/>
+    <origin xyz="-0.0052979346222468 -0.006164456334156639 -0.0038664642263084303" rpy="0 0 0"/>
     <mass value="0.07630173554088619"/>
     <inertia ixx="6e-06" iyy="7e-06" izz="6e-06" ixy="1e-06" iyz="0.0" ixz="1e-06"/>
   </inertial>
   <visual>
-    <origin xyz="-0.079058 -0.062766 -1.074295" rpy="0 0 0"/>
+    <origin xyz="-0.079058 -0.062766 -0.574295" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/end__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="-0.079058 -0.062766 -1.074295" rpy="0 0 0"/>
+    <origin xyz="-0.079058 -0.062766 -0.574295" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find ajgar_description)/meshes/end__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -152,7 +152,7 @@
 </link>
 
 <joint name="base_joint" type="continuous">
-  <origin xyz="-0.015013 0.0 0.56" rpy="0 0 0"/>
+  <origin xyz="-0.015013 0.0 0.06" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="base_top_1"/>
   <axis xyz="0.0 0.0 1.0"/>
@@ -165,7 +165,7 @@
   <axis xyz="0.5 -0.866025 0.0"/>
 </joint>
 
-<joint name="arm_joint" type="continuous">
+<joint name="arm_joint " type="continuous">
   <origin xyz="-0.111716 -0.064499 0.223432" rpy="0 0 0"/>
   <parent link="shoulder_1"/>
   <child link="elbow_1"/>
