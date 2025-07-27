@@ -57,10 +57,26 @@ target_link_libraries(ik_tracik_node
 )
 target_include_directories(ik_tracik_node PUBLIC ${EIGEN3_INCLUDE_DIRS})
 
+
+
+add_executable(marker_tracik src/tracik_marker.cpp)
+ament_target_dependencies(marker_tracik
+  rclcpp sensor_msgs visualization_msgs geometry_msgs
+  tf2 tf2_ros urdf kdl_parser orocos_kdl  interactive_markers
+)
+target_link_libraries(marker_tracik
+  trac_ik_lib
+  ${NLOPT_LIB}
+)
+target_include_directories(marker_tracik PUBLIC ${EIGEN3_INCLUDE_DIRS})
+
+
+
 # === Install ===
 install(TARGETS
   kdl_ik_solver_node
   ik_tracik_node
+  marker_tracik
   DESTINATION lib/${PROJECT_NAME}
 )
 

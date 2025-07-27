@@ -26,7 +26,7 @@ public:
     
     // Subscribe to joint states
     joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
-        "/joint_states", 10, std::bind(&SelfCollisionChecker::jointStateCallback, this, std::placeholders::_1));
+        "/joint_states", 1, std::bind(&SelfCollisionChecker::jointStateCallback, this, std::placeholders::_1));
 
     // Load arm URDF
     std::string urdf_path = ament_index_cpp::get_package_share_directory("ajgar_description") + "/urdf/arm.urdf";
@@ -386,7 +386,10 @@ private:
           arm_collided_links.insert(it1->first);
           arm_collided_links.insert(it2->first);
           arm_self_collided_pairs.emplace_back(it1->first, it2->first);
+
+          
         }
+        publishArmMarkers(arm_collided_links, arm_predicted_links);
       }
     }
 
@@ -418,6 +421,7 @@ private:
           station_collided_links.insert(station_link_name);
           arm_station_collided_pairs.emplace_back(arm_link_name, station_link_name);
         }
+        publishArmMarkers(arm_collided_links, arm_predicted_links);
       }
     }
 
@@ -448,6 +452,7 @@ private:
           table_collided_links.insert(table_link_name);
           arm_table_collided_pairs.emplace_back(arm_link_name, table_link_name);
         }
+        publishArmMarkers(arm_collided_links, arm_predicted_links);
       }
     }
 

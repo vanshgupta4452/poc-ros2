@@ -568,7 +568,7 @@ private:
                 double step = std::min(std::abs(delta), max_step);
                 
                 current_joint_positions_(i) += (delta > 0 ? 0.5 : -0.5) * step;
-                joint_velocities_(i) = (delta > 0 ? 0.005 : -0.005) * step / 0.05;
+                joint_velocities_(i) = (delta > 0 ? 0.5 : -0.5) * step / 0.05;
                 joints_moving = true;
             } 
             else if(delta<=0.0001){
