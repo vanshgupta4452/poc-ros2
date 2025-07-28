@@ -393,68 +393,76 @@ private:
       }
     }
 
+    // Assuming station has only one link (e.g., base_link)
+    auto station_link_name = "base_link";  // Replace with actual name if different
+    auto station_obj = station_collision_objects_.at(station_link_name);
+
     // Check arm-station collisions
     for (const auto& [arm_link_name, arm_obj] : arm_collision_objects_) {
-      for (const auto& [station_link_name, station_obj] : station_collision_objects_) {
-        fcl::CollisionRequestd request;
-        request.enable_contact = true;
-        request.num_max_contacts = 100;
+      fcl::CollisionRequestd request;
+      request.enable_contact = true;
+      request.num_max_contacts = 100;
 
-        fcl::CollisionResultd result;
-        fcl::collide(arm_obj.get(), station_obj.get(), request, result);
+      fcl::CollisionResultd result;
+      fcl::collide(arm_obj.get(), station_obj.get(), request, result);
 
-        fcl::DistanceRequestd requestd;
-        fcl::DistanceResultd resultd;
-        fcl::distance(arm_obj.get(), station_obj.get(), requestd, resultd);
+      fcl::DistanceRequestd requestd;
+      fcl::DistanceResultd resultd;
+      fcl::distance(arm_obj.get(), station_obj.get(), requestd, resultd);
 
-        // Prediction check
-        if (resultd.min_distance < 0.02) { // 2 cm threshold for arm-station
-          arm_predicted_links.insert(arm_link_name);
-          station_predicted_links.insert(station_link_name);
-          RCLCPP_WARN(this->get_logger(), "[ARM-STATION PREDICT] %s <-> %s, distance = %.3f m",
-                     arm_link_name.c_str(), station_link_name.c_str(), resultd.min_distance);
-        }
-
-        // Collision check
-        if (result.isCollision()) {
-          arm_collided_links.insert(arm_link_name);
-          station_collided_links.insert(station_link_name);
-          arm_station_collided_pairs.emplace_back(arm_link_name, station_link_name);
-        }
-        publishArmMarkers(arm_collided_links, arm_predicted_links);
+      // Prediction check
+      if (resultd.min_distance < 0.05) { 
+        arm_predicted_links.insert(arm_link_name);
+        station_predicted_links.insert(station_link_name);
+        RCLCPP_WARN(this->get_logger(), "[ARM-STATION PREDICT] %s <-> %s, distance = %.3f m",
+                  arm_link_name.c_str(), station_link_name, resultd.min_distance);
       }
+
+      // Collision check
+      if (result.isCollision()) {
+        arm_collided_links.insert(arm_link_name);
+        station_collided_links.insert(station_link_name);
+        arm_station_collided_pairs.emplace_back(arm_link_name, station_link_name);
+      }
+      publishArmMarkers(arm_collided_links, arm_predicted_links);
     }
 
+
+    // Assuming table has only one link (e.g., table_base_link)
+    auto table_link_name = "base_link";  // Replace with actual name if needed
+    auto table_obj = table_collision_objects_.at(table_link_name);
+
+    // Check arm-table collisions
     for (const auto& [arm_link_name, arm_obj] : arm_collision_objects_) {
-      for (const auto& [table_link_name, table_obj] : table_collision_objects_) {
-        fcl::CollisionRequestd request;
-        request.enable_contact = true;
-        request.num_max_contacts = 100;
+      fcl::CollisionRequestd request;
+      request.enable_contact = true;
+      request.num_max_contacts = 100;
 
-        fcl::CollisionResultd result;
-        fcl::collide(arm_obj.get(), table_obj.get(), request, result);
+      fcl::CollisionResultd result;
+      fcl::collide(arm_obj.get(), table_obj.get(), request, result);
 
-        fcl::DistanceRequestd requestd;
-        fcl::DistanceResultd resultd;
-        fcl::distance(arm_obj.get(), table_obj.get(), requestd, resultd);
+      fcl::DistanceRequestd requestd;
+      fcl::DistanceResultd resultd;
+      fcl::distance(arm_obj.get(), table_obj.get(), requestd, resultd);
 
-        
-        if (resultd.min_distance < 0.02) { // 2 cm threshold for arm-station
-          arm_predicted_links.insert(arm_link_name);
-          table_predicted_links.insert(table_link_name);
-          RCLCPP_WARN(this->get_logger(), "[ARM-TABLE PREDICT] %s <-> %s, distance = %.3f m",
-                     arm_link_name.c_str(), table_link_name.c_str(), resultd.min_distance);
-        }
-
-        // Collision check
-        if (result.isCollision()) {
-          arm_collided_links.insert(arm_link_name);
-          table_collided_links.insert(table_link_name);
-          arm_table_collided_pairs.emplace_back(arm_link_name, table_link_name);
-        }
-        publishArmMarkers(arm_collided_links, arm_predicted_links);
+      // Prediction check
+      if (resultd.min_distance < 0.01) { // 1 cm threshold for arm-table
+        arm_predicted_links.insert(arm_link_name);
+        table_predicted_links.insert(table_link_name);
+        RCLCPP_WARN(this->get_logger(), "[ARM-TABLE PREDICT] %s <-> %s, distance = %.3f m",
+                  arm_link_name.c_str(), table_link_name, resultd.min_distance);
       }
+
+      // Collision check
+      if (result.isCollision()) {
+        arm_collided_links.insert(arm_link_name);
+        table_collided_links.insert(table_link_name);
+        arm_table_collided_pairs.emplace_back(arm_link_name, table_link_name);
+      }
+
+      publishArmMarkers(arm_collided_links, arm_predicted_links);
     }
+
 
 
 
@@ -576,13 +584,13 @@ private:
         marker.color.g = 0.0;
         marker.color.b = 0.0;
       } else if (predicted_links.count(link->name)) {
-        marker.color.r = 1.0;
-        marker.color.g = 0.0;
-        marker.color.b = 0.0; 
-      } else {
         marker.color.r = 0.0;
         marker.color.g = 0.0;
         marker.color.b = 1.0; 
+      } else {
+        marker.color.r = 0.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0; 
       }
       marker.color.a = 0.5;
 
