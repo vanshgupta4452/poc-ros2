@@ -1,7 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <urdf/model.h>
 #include <fcl/fcl.h>
-#include <visualization_msgs/msg/marker_array.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <assimp/Importer.hpp>
@@ -19,9 +18,6 @@
 class SelfCollisionChecker : public rclcpp::Node {
 public:
   SelfCollisionChecker() : Node("self_collision_checker") {
-    marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("self_collision_markers", 1);
-    station_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("station_markers", 1);
-    table_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("table_markers", 1);
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     
     // Subscribe to joint states
@@ -42,7 +38,7 @@ public:
       return;
     }
 
-     std::string table_urdf = ament_index_cpp::get_package_share_directory("fixture_table_description") + "/urdf/fixture_table.urdf";
+    std::string table_urdf = ament_index_cpp::get_package_share_directory("fixture_table_description") + "/urdf/fixture_table.urdf";
     if (!table_model_.initFile(table_urdf)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to load table URDF: %s", table_urdf.c_str());
       return;
@@ -61,8 +57,6 @@ public:
 
     timer_ = this->create_wall_timer(std::chrono::milliseconds(100), 
                                     std::bind(&SelfCollisionChecker::checkCollisions, this));
-
-                                  
   }
 
 private:
@@ -85,9 +79,6 @@ private:
   
   std::map<std::string, double> current_joint_positions_;
   
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr station_marker_pub_;
-  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr table_marker_pub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::string arm_package_share_dir_;
@@ -209,7 +200,6 @@ private:
 
       station_collision_geometries_[link->name] = geom;
       
-      
       Eigen::Isometry3d station_transform = Eigen::Isometry3d::Identity();
       
       // Apply collision origin offset for station
@@ -241,10 +231,8 @@ private:
 
       table_collision_geometries_[link->name] = geom;
       
-  
       Eigen::Isometry3d table_transform = Eigen::Isometry3d::Identity();
       
-     
       if (link->collision) {
         Eigen::Isometry3d collision_offset = Eigen::Isometry3d::Identity();
         collision_offset.translation() << link->collision->origin.position.x,
@@ -334,7 +322,6 @@ private:
     std::set<std::string> station_predicted_links;
     std::set<std::string> table_predicted_links;
 
-
     for (const auto &joint : arm_model_.joints_) {
       const std::string &parent = joint.second->parent_link_name;
       const std::string &child = joint.second->child_link_name;
@@ -397,7 +384,6 @@ private:
         }
       }
 
-
       auto table_link_name = "base_link";  // Replace with correct table link
       auto table_obj = table_collision_objects_.at(table_link_name);
 
@@ -426,8 +412,8 @@ private:
         }
       }
 
-      // ===============================
-      auto station_link_name = "base_link";  // Replace if needed
+
+      auto station_link_name = "base_link"; 
       auto station_obj = station_collision_objects_.at(station_link_name);
 
       fcl::CollisionResultd station_result;
@@ -455,185 +441,7 @@ private:
         }
       }
       }
-    
-
-    publishArmMarkers(arm_collided_links, arm_predicted_links);
-    
-    // Create station visualization markers
-    publishStationMarkers(station_collided_links, station_predicted_links);
-
-    publishTableMarkers(table_collided_links, table_predicted_links);
     }
-   
-
-
-  }
-
-  void publishArmMarkers(const std::set<std::string>& collided_links, const std::set<std::string>& predicted_links) {
-    visualization_msgs::msg::MarkerArray marker_array;
-    int id = 0;
-    
-    for (const auto &[link_name, obj] : arm_collision_objects_) {
-      if (!arm_link_transforms_.count(link_name)) continue;
-
-      auto urdf_link = arm_model_.getLink(link_name);
-      if (!urdf_link || !urdf_link->collision) continue;
-
-      visualization_msgs::msg::Marker marker = createMarker(
-        urdf_link, arm_link_transforms_[link_name], id++, "arm_collision", arm_package_share_dir_);
-      
-      // Set color based on collision status
-      if (collided_links.count(link_name)) {
-        marker.color.r = 1.0;
-        marker.color.g = 0.0;
-        marker.color.b = 0.0;
-      } else if (predicted_links.count(link_name)) {
-        marker.color.r = 0.0;
-        marker.color.g = 0.0;
-        marker.color.b = 1.0; // Orange for prediction
-      } else {
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0;
-      }
-      marker.color.a = 0.7;
-
-      marker_array.markers.push_back(marker);
-    }
-
-    marker_pub_->publish(marker_array);
-  }
-
-  void publishStationMarkers(const std::set<std::string>& collided_links, const std::set<std::string>& predicted_links) {
-    visualization_msgs::msg::MarkerArray marker_array;
-    int id = 1000; // Different ID range for station
-    
-    for (const auto &pair : station_model_.links_) {
-      const auto &link = pair.second;
-      if (!link->collision || !link->collision->geometry) continue;
-
-      visualization_msgs::msg::Marker marker = createMarker(
-        link, Eigen::Isometry3d::Identity(), id++, "station_collision", station_package_share_dir_);
-      
-      // Set color based on collision status
-      if (collided_links.count(link->name)) {
-        marker.color.r = 1.0;
-        marker.color.g = 0.0;
-        marker.color.b = 0.0;
-      } else if (predicted_links.count(link->name)) {
-        marker.color.r = 0.0;
-        marker.color.g = 0.0;
-        marker.color.b = 1.0; // Orange for prediction
-      } else {
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0; // Gray for station
-      }
-      marker.color.a = 0.5;
-
-      marker_array.markers.push_back(marker);
-    }
-
-    station_marker_pub_->publish(marker_array);
-  }
-
-   void publishTableMarkers(const std::set<std::string>& collided_links, const std::set<std::string>& predicted_links) {
-    visualization_msgs::msg::MarkerArray marker_array;
-    int id = 1000; 
-    
-    for (const auto &pair : table_model_.links_) {
-      const auto &link = pair.second;
-      if (!link->collision || !link->collision->geometry) continue;
-
-      visualization_msgs::msg::Marker marker = createMarker(
-        link, Eigen::Isometry3d::Identity(), id++, "table_collision", table_package_share_dir_);
-      
-      // Set color based on collision status
-      if (collided_links.count(link->name)) {
-        marker.color.r = 1.0;
-        marker.color.g = 0.0;
-        marker.color.b = 0.0;
-      } else if (predicted_links.count(link->name)) {
-        marker.color.r = 0.0;
-        marker.color.g = 0.0;
-        marker.color.b = 1.0; 
-      } else {
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0; 
-      }
-      marker.color.a = 0.5;
-
-      marker_array.markers.push_back(marker);
-    }
-
-    table_marker_pub_->publish(marker_array);
-  }
-
-  visualization_msgs::msg::Marker createMarker(const urdf::LinkConstSharedPtr& urdf_link, 
-                                               const Eigen::Isometry3d& link_transform,
-                                               int id, const std::string& ns,
-                                               const std::string& package_dir) {
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = this->now();
-    marker.header.frame_id = "base_link";
-    marker.ns = ns;
-    marker.id = id;
-    marker.action = marker.ADD;
-
-    // Apply collision origin offset
-    Eigen::Isometry3d collision_offset = Eigen::Isometry3d::Identity();
-    collision_offset.translation() << urdf_link->collision->origin.position.x,
-                                     urdf_link->collision->origin.position.y,
-                                     urdf_link->collision->origin.position.z;
-    Eigen::Quaterniond q(urdf_link->collision->origin.rotation.w,
-                         urdf_link->collision->origin.rotation.x,
-                         urdf_link->collision->origin.rotation.y,
-                         urdf_link->collision->origin.rotation.z);
-    collision_offset.linear() = q.toRotationMatrix();
-    
-    Eigen::Isometry3d final_tf = link_transform * collision_offset;
-    Eigen::Vector3d pos = final_tf.translation();
-    Eigen::Quaterniond quat(final_tf.rotation());
-
-    marker.pose.position.x = pos.x();
-    marker.pose.position.y = pos.y();
-    marker.pose.position.z = pos.z();
-    marker.pose.orientation.x = quat.x();
-    marker.pose.orientation.y = quat.y();
-    marker.pose.orientation.z = quat.z();
-    marker.pose.orientation.w = quat.w();
-
-    // Set geometry
-    auto *geom = urdf_link->collision->geometry.get();
-    if (geom->type == urdf::Geometry::BOX) {
-      auto *box = dynamic_cast<urdf::Box *>(geom);
-      marker.type = marker.CUBE;
-      marker.scale.x = box->dim.x;
-      marker.scale.y = box->dim.y;
-      marker.scale.z = box->dim.z;
-    } else if (geom->type == urdf::Geometry::CYLINDER) {
-      auto *cyl = dynamic_cast<urdf::Cylinder *>(geom);
-      marker.type = marker.CYLINDER;
-      marker.scale.x = cyl->radius * 2;
-      marker.scale.y = cyl->radius * 2;
-      marker.scale.z = cyl->length;
-    } else if (geom->type == urdf::Geometry::SPHERE) {
-      auto *sph = dynamic_cast<urdf::Sphere *>(geom);
-      marker.type = marker.SPHERE;
-      marker.scale.x = sph->radius * 2;
-      marker.scale.y = sph->radius * 2;
-      marker.scale.z = sph->radius * 2;
-    } else if (geom->type == urdf::Geometry::MESH) {
-      auto *mesh = dynamic_cast<urdf::Mesh *>(geom);
-      marker.type = marker.MESH_RESOURCE;
-      marker.mesh_resource = "file://" + resolveMeshPath(mesh->filename, package_dir);
-      marker.scale.x = mesh->scale.x;
-      marker.scale.y = mesh->scale.y;
-      marker.scale.z = mesh->scale.z;
-    }
-
-    return marker;
   }
 };
 

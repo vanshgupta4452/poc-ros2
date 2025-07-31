@@ -36,6 +36,7 @@ pkg_check_modules(ASSIMP REQUIRED assimp)
 # Add executable
 add_executable(fcl_self_collision_node src/fcl_self_collision.cpp)
 add_executable(self_node src/self.cpp)
+add_executable(collision_node src/fcl_without_marker.cpp)
 
 # Set target dependencies
 ament_target_dependencies(fcl_self_collision_node
@@ -63,12 +64,30 @@ ament_target_dependencies(self_node
   resource_retriever
 )
 
+ament_target_dependencies(collision_node
+  rclcpp
+  geometry_msgs
+  visualization_msgs
+  urdf
+  geometric_shapes
+  Eigen3
+  ament_index_cpp
+  tf2_ros
+  tf2_geometry_msgs
+  resource_retriever
+)
+
 # Link libraries
 target_link_libraries(fcl_self_collision_node
   fcl
   ${ASSIMP_LIBRARIES}
 )
 target_link_libraries(self_node
+  fcl
+  ${ASSIMP_LIBRARIES}
+)
+
+target_link_libraries(collision_node
   fcl
   ${ASSIMP_LIBRARIES}
 )
@@ -81,8 +100,16 @@ target_include_directories(self_node PRIVATE
   ${ASSIMP_INCLUDE_DIRS}
 )
 
+target_include_directories(collision_node PRIVATE 
+  ${ASSIMP_INCLUDE_DIRS}
+)
+
 # Compile options for Assimp
 target_compile_options(fcl_self_collision_node PRIVATE 
+  ${ASSIMP_CFLAGS_OTHER}
+)
+
+target_compile_options(collision_node PRIVATE 
   ${ASSIMP_CFLAGS_OTHER}
 )
 
@@ -103,6 +130,11 @@ install(TARGETS
 
 install(TARGETS
   self_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS
+  collision_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

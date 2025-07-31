@@ -158,6 +158,10 @@
   <axis xyz="0.0 0.0 1.0"/>
 </joint>
 
+
+
+
+
 <joint name="shoulder_joint" type="continuous">
   <origin xyz="0.0125 -0.021651 0.059368" rpy="0 0 0"/>
   <parent link="base_top_1"/>
